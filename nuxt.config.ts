@@ -1,10 +1,14 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const repositoryName = 'not-enough-time'
+const baseURL = process.env.GITHUB_ACTIONS === 'true' ? `/${repositoryName}/` : '/'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   css: ['~/assets/css/main.css'],
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss'],
   app: {
+    baseURL,
     head: {
       title: 'Not Enough Time',
       meta: [
