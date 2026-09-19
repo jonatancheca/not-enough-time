@@ -4,18 +4,33 @@ import {
   CalendarDays,
   Clock3,
   Gauge,
+  KeyRound,
   ListVideo,
+  LogOut,
   PlayCircle,
   RefreshCw,
+  ShieldOff,
   TrendingUp,
   Trophy,
   TvMinimalPlay
 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { formatDuration, formatHours, getVideoWindow, isWithinWindow, WATCHLOAD_WINDOWS } from '~/lib/watchload'
+import type { YouTubeAuthStatus } from '~/lib/youtubeAuth'
 import type { PublishedVideo, SubscribedChannel } from '~/lib/youtubeTypes'
 
 const { data, error, refresh, status } = useYoutubeWatchload()
+const {
+  connect,
+  disconnect,
+  error: authError,
+  probe,
+  probeMessage,
+  probeStatus,
+  reauthorize,
+  revoke,
+  status: authStatus
+} = useYoutubeAuth()
 
 const hasHydrated = ref(false)
 const selectedWindow = ref<'day' | 'week' | 'month'>('month')
@@ -40,6 +55,26 @@ const windowLabels = {
   month: 'ultimos 30 dias',
   older: 'fuera'
 } as const
+
+const authStatusLabels: Record<YouTubeAuthStatus, string> = {
+  disconnected: 'Desconectado',
+  requesting: 'Solicitando permiso',
+  connected: 'Conectado',
+  expired: 'Token caducado',
+  denied: 'Permiso denegado',
+  revoked: 'Permiso revocado',
+  missing_configuration: 'Configuración ausente'
+}
+
+const authStatusLabel = computed(() => authStatusLabels[authStatus.value])
+const canConnect = computed(() =>
+  ['disconnected', 'denied', 'revoked'].includes(authStatus.value)
+)
+const canReauthorize = computed(() => authStatus.value === 'expired')
+const canManageConnection = computed(() =>
+  ['connected', 'expired'].includes(authStatus.value)
+)
+const isRequestingPermission = computed(() => authStatus.value === 'requesting')
 
 const visibleVideos = computed(() => {
   if (!data.value) {
@@ -174,6 +209,106 @@ onMounted(() => {
           </button>
         </div>
       </header>
+
+      <section
+        class="rounded-md border border-slate-200 bg-white p-4 shadow-soft"
+        aria-labelledby="youtube-authorization-title"
+        :aria-busy="isRequestingPermission"
+      >
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <KeyRound class="size-5 text-red-600" aria-hidden="true" />
+              <h2 id="youtube-authorization-title" class="font-semibold text-slate-950">
+                Acceso de solo lectura a YouTube
+              </h2>
+              <span
+                class="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                aria-live="polite"
+              >
+                {{ authStatusLabel }}
+              </span>
+            </div>
+            <p class="mt-2 text-sm text-slate-600">
+              El token permanece solo en memoria y desaparece al recargar o desconectar.
+            </p>
+            <p v-if="authError" class="mt-2 text-sm font-medium text-red-700" role="alert">
+              {{ authError }}
+            </p>
+            <p
+              v-if="probeMessage"
+              class="mt-2 text-sm font-medium"
+              :class="probeStatus === 'success' ? 'text-emerald-700' : probeStatus === 'error' ? 'text-red-700' : 'text-slate-600'"
+              aria-live="polite"
+            >
+              {{ probeMessage }}
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-if="canConnect || authStatus === 'missing_configuration' || isRequestingPermission"
+              type="button"
+              class="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="authStatus === 'missing_configuration' || isRequestingPermission"
+              @click="connect"
+            >
+              <RefreshCw
+                v-if="isRequestingPermission"
+                class="size-4 animate-spin"
+                aria-hidden="true"
+              />
+              <KeyRound v-else class="size-4" aria-hidden="true" />
+              {{ isRequestingPermission ? 'Solicitando permiso' : 'Conectar cuenta' }}
+            </button>
+
+            <button
+              v-if="canReauthorize"
+              type="button"
+              class="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
+              @click="reauthorize"
+            >
+              <RefreshCw class="size-4" aria-hidden="true" />
+              Volver a autorizar
+            </button>
+
+            <button
+              v-if="authStatus === 'connected'"
+              type="button"
+              class="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+              :disabled="probeStatus === 'checking'"
+              @click="probe"
+            >
+              <RefreshCw
+                class="size-4"
+                :class="{ 'animate-spin': probeStatus === 'checking' }"
+                aria-hidden="true"
+              />
+              Probar acceso
+            </button>
+
+            <button
+              v-if="canManageConnection"
+              type="button"
+              class="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              @click="disconnect"
+            >
+              <LogOut class="size-4" aria-hidden="true" />
+              Desconectar
+            </button>
+
+            <button
+              v-if="canManageConnection"
+              type="button"
+              class="inline-flex h-10 items-center gap-2 rounded-md border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              @click="revoke"
+            >
+              <ShieldOff class="size-4" aria-hidden="true" />
+              Revocar consentimiento
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section v-if="hasHydrated && error" class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         No se pudo cargar el mock de YouTube.

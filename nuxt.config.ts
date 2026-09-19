@@ -7,6 +7,11 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss'],
+  runtimeConfig: {
+    public: {
+      googleClientId: ''
+    }
+  },
   app: {
     baseURL,
     head: {
@@ -15,6 +20,16 @@ export default defineNuxtConfig({
         {
           name: 'description',
           content: 'Dashboard mock para estimar las horas de YouTube que publican tus canales suscritos.'
+        },
+        {
+          name: 'referrer',
+          content: 'no-referrer-when-downgrade'
+        }
+      ],
+      script: [
+        {
+          src: 'https://accounts.google.com/gsi/client',
+          async: true
         }
       ]
     }
