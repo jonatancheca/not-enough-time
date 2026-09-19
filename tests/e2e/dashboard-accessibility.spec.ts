@@ -24,6 +24,10 @@ test('dashboard fixture is accessible and responsive without real YouTube reques
       await page.setViewportSize(viewport)
       await page.goto('./', { waitUntil: 'domcontentloaded' })
       await expect(page.getByText('Fixture de desarrollo')).toBeVisible()
+      await expect(page.getByRole('heading', {
+        name: 'Uso personal y usuarios de prueba autorizados'
+      })).toBeVisible()
+      await expect(page.getByText(/son métricas propias de Not Enough Time/)).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Vídeos recientes' })).toBeVisible()
 
       const periods = page.getByRole('group', {

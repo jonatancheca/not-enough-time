@@ -40,6 +40,25 @@ useSeoMeta({
               Este aviso no supone que Google o YouTube hayan aprobado un lanzamiento público ni
               certificado el cumplimiento de sus políticas.
             </p>
+            <p class="mt-3">
+              Su uso también está sujeto a los
+              <NuxtLink
+                to="/terms/"
+                class="inline-flex min-h-6 items-center py-1 font-semibold text-red-700 underline underline-offset-4"
+              >términos de uso de Not Enough Time</NuxtLink>.
+            </p>
+          </section>
+
+          <section aria-labelledby="privacy-derived-metrics">
+            <h2 id="privacy-derived-metrics" class="text-xl font-semibold text-slate-950">
+              Métricas propias
+            </h2>
+            <p class="mt-3">
+              Carga de publicación, ranking, porcentajes por canal, categorías por duración,
+              ritmo diario y comparación con capacidad son cálculos de Not Enough Time. YouTube
+              no proporciona, aprueba ni certifica esas métricas. La aplicación no se abrirá al
+              público mientras su revisión de políticas siga pendiente.
+            </p>
           </section>
 
           <section aria-labelledby="privacy-access">
@@ -86,8 +105,8 @@ useSeoMeta({
                 <tbody class="align-top">
                   <tr class="border-b border-slate-200">
                     <td class="px-3 py-3">Reglas por canal y capacidad diaria, asociadas a la cuenta</td>
-                    <td class="px-3 py-3">localStorage; sin caducidad automática</td>
-                    <td class="px-3 py-3">“Borrar todos mis datos”</td>
+                    <td class="px-3 py-3">localStorage; mientras se mantenga el consentimiento</td>
+                    <td class="px-3 py-3">Desconectar o “Borrar todos mis datos”</td>
                   </tr>
                   <tr class="border-b border-slate-200">
                     <td class="px-3 py-3">Instantánea de suscripciones y publicaciones</td>
@@ -118,7 +137,7 @@ useSeoMeta({
             <ul class="mt-3 list-disc space-y-2 pl-6">
               <li>
                 <strong>Desconectar</strong> revoca el permiso actual, elimina la caché de YouTube
-                de la cuenta conectada y conserva las reglas y capacidad guardadas para esa cuenta.
+                y borra las reglas y capacidad asociadas a la cuenta conectada.
               </li>
               <li>
                 <strong>Borrar todos mis datos</strong> elimina las claves del namespace
@@ -128,6 +147,16 @@ useSeoMeta({
               <li>
                 Los controles del navegador para borrar los datos del sitio eliminan cualquier
                 almacenamiento local restante de este origen.
+              </li>
+              <li>
+                También puedes retirar el acceso desde la
+                <a
+                  href="https://security.google.com/settings/security/permissions"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center py-1 font-semibold text-red-700 underline underline-offset-4"
+                >configuración de seguridad de Google<span class="sr-only"> (se abre en una pestaña nueva)</span></a>.
+                La aplicación elimina los datos vinculados cuando detecta la revocación.
               </li>
             </ul>
           </section>
@@ -154,16 +183,22 @@ useSeoMeta({
                 href="https://github.com/jonatancheca/not-enough-time/issues"
                 target="_blank"
                 rel="noreferrer"
-                class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                class="inline-flex min-h-6 max-w-full flex-wrap items-center py-1 font-semibold text-red-700 underline underline-offset-4"
               >repositorio de Not Enough Time<span class="sr-only"> (se abre en una pestaña nueva)</span></a>.
             </p>
             <ul class="mt-3 list-disc space-y-2 pl-6">
+              <li>
+                <NuxtLink
+                  to="/terms/"
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center py-1 font-semibold text-red-700 underline underline-offset-4"
+                >Términos de uso de Not Enough Time</NuxtLink>
+              </li>
               <li>
                 <a
                   href="https://policies.google.com/privacy"
                   target="_blank"
                   rel="noreferrer"
-                  class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center py-1 font-semibold text-red-700 underline underline-offset-4"
                 >Política de privacidad de Google<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
               </li>
               <li>
@@ -171,7 +206,7 @@ useSeoMeta({
                   href="https://www.youtube.com/t/terms"
                   target="_blank"
                   rel="noreferrer"
-                  class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center py-1 font-semibold text-red-700 underline underline-offset-4"
                 >Términos del Servicio de YouTube<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
               </li>
               <li>
@@ -179,7 +214,7 @@ useSeoMeta({
                   href="https://developers.google.com/terms/api-services-user-data-policy"
                   target="_blank"
                   rel="noreferrer"
-                  class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center py-1 font-semibold text-red-700 underline underline-offset-4"
                 >Política de datos de usuario de los servicios API de Google<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
               </li>
             </ul>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LocalStorageLike } from '../app/lib/contentPreferences'
 import {
+  clearDailyCapacityMinutes,
   compareDailyCapacity,
   dailyCapacityStorageKey,
   loadDailyCapacityMinutes,
@@ -96,6 +97,18 @@ describe('daily viewing capacity persistence', () => {
     expect(saveDailyCapacityMinutes('account-a', 30, null)).toBe(false)
     expect(loadDailyCapacityMinutes('account-a', storage)).toBe(0)
     expect(saveDailyCapacityMinutes('account-a', 30, storage)).toBe(false)
+    expect(clearDailyCapacityMinutes('account-a', null)).toBe(false)
+    expect(clearDailyCapacityMinutes('account-a', storage)).toBe(false)
+  })
+
+  it('deletes only capacity linked to the revoked account', () => {
+    const storage = new MemoryStorage()
+    saveDailyCapacityMinutes('account-a', 30, storage)
+    saveDailyCapacityMinutes('account-b', 60, storage)
+
+    expect(clearDailyCapacityMinutes('account-a', storage)).toBe(true)
+    expect(loadDailyCapacityMinutes('account-a', storage)).toBe(0)
+    expect(loadDailyCapacityMinutes('account-b', storage)).toBe(60)
   })
 })
 

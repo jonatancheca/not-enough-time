@@ -12,6 +12,10 @@ El proyecto se encuentra en una fase personal, limitada al responsable y a
 usuarios de prueba autorizados en Google Cloud. No se presenta como un producto
 público ni como una integración aprobada o auditada por Google o YouTube.
 
+La carga de publicación, el ranking, los porcentajes por canal, las categorías
+por duración, el ritmo diario y la comparación con capacidad son métricas
+propias de Not Enough Time. YouTube no las proporciona, aprueba ni certifica.
+
 ## Arquitectura y lenguaje del dominio
 
 Es una aplicación Nuxt estática desplegada en GitHub Pages. La autorización se
@@ -22,6 +26,8 @@ backend de la aplicación.
 - [Glosario del dominio](./CONTEXT.md)
 - [ADR: integración de YouTube solo en el navegador](./docs/adr/0001-use-browser-only-youtube-integration.md)
 - [Aviso de privacidad de la aplicación](https://jonatancheca.github.io/not-enough-time/privacy/)
+- [Términos de uso](https://jonatancheca.github.io/not-enough-time/terms/)
+- [Revisión de cumplimiento de YouTube API](./docs/compliance/youtube-api-review.md)
 
 ## Requisitos
 
@@ -62,6 +68,9 @@ En **Google Auth Platform** del mismo proyecto:
 
 Consulta la documentación oficial sobre [audiencia y usuarios de prueba](https://support.google.com/cloud/answer/15549945)
 y el [token model de Google Identity Services](https://developers.google.com/identity/oauth2/web/guides/use-token-model).
+Testing admite como máximo 100 usuarios añadidos explícitamente. Las
+autorizaciones de scopes no básicos caducan a los 7 días. Estos límites no
+equivalen a una verificación para lanzamiento público.
 
 ### 3. Crear el OAuth Client ID web
 
@@ -154,8 +163,9 @@ NUXT_APP_BASE_URL=/not-enough-time/ pnpm generate
 
 1. En **Settings > Pages**, selecciona **GitHub Actions** como origen.
 2. En **Settings > Secrets and variables > Actions > Variables**, crea la
-   variable `NUXT_PUBLIC_GOOGLE_CLIENT_ID` con el OAuth Client ID web. Usa una
-   variable, no un secret: el valor termina siendo público en el frontend.
+   variable `NUXT_PUBLIC_GOOGLE_CLIENT_ID` solo para un despliegue de pruebas
+   explícitamente restringido a test users. Usa una variable, no un secret: el
+   valor termina siendo público en el frontend.
 3. Ejecuta el workflow **Deploy GitHub Pages** manualmente o mediante un push a
    `master`, según `.github/workflows/deploy.yml`.
 
@@ -163,15 +173,25 @@ El workflow obtiene el base path desde `actions/configure-pages`, lo pasa como
 `NUXT_APP_BASE_URL`, ejecuta lint, typecheck, pruebas, generación, escaneo del
 artefacto y smoke E2E, y solo después publica `.output/public`.
 
+El despliegue actual mantiene `NUXT_PUBLIC_GOOGLE_CLIENT_ID` sin configurar.
+Por ello, la conexión real queda deshabilitada y la página muestra
+“Configuración ausente”. No debe configurarse para una audiencia pública hasta
+resolver el NO-GO documentado en la revisión de cumplimiento.
+
 Con la configuración actual, las URLs son:
 
 - aplicación: `https://jonatancheca.github.io/not-enough-time/`;
 - privacidad: `https://jonatancheca.github.io/not-enough-time/privacy/`;
+- términos: `https://jonatancheca.github.io/not-enough-time/terms/`;
 - Authorized JavaScript origin: `https://jonatancheca.github.io`.
 
 Si cambia el nombre del repositorio o se configura un dominio propio, GitHub
 Pages proporciona otro base path al workflow. También deben actualizarse los
 orígenes autorizados y URLs de Google Cloud cuando cambie el origen.
+
+Un lanzamiento público requiere un dominio propio verificable. No debe
+asumirse que el dominio compartido `github.io` satisface la verificación de
+dominio de Google OAuth.
 
 Guía oficial: [desplegar Nuxt en GitHub Pages](https://nuxt.com/deploy/github-pages).
 
@@ -180,13 +200,13 @@ Guía oficial: [desplegar Nuxt en GitHub Pages](https://nuxt.com/deploy/github-p
 | Dato | Almacenamiento | Duración | Cómo se borra |
 | --- | --- | --- | --- |
 | Access token OAuth | Solo memoria | Hasta recarga, cierre, caducidad o desconexión | Recargar, cerrar, desconectar o borrar todos los datos |
-| Reglas de contenido por canal | localStorage, por cuenta | Sin caducidad automática | “Borrar todos mis datos” |
-| Capacidad diaria | localStorage, por cuenta | Sin caducidad automática | “Borrar todos mis datos” |
+| Reglas de contenido por canal | localStorage, por cuenta | Mientras exista consentimiento | Desconectar o “Borrar todos mis datos” |
+| Capacidad diaria | localStorage, por cuenta | Mientras exista consentimiento | Desconectar o “Borrar todos mis datos” |
 | Suscripciones y metadatos de publicaciones | IndexedDB, por cuenta | Frescos 1 hora; retención máxima 30 días sin renovar | Desconectar, borrar todos los datos o borrar datos del sitio desde el navegador |
 
 La acción **Desconectar** revoca el permiso actual y borra la caché de YouTube
-de la cuenta conectada. Conserva las reglas por canal y la capacidad diaria para
-una conexión posterior.
+de la cuenta conectada. También borra las reglas por canal y la capacidad diaria
+asociadas a los identificadores obtenidos mediante YouTube.
 
 La acción **Borrar todos mis datos** elimina todas las claves de localStorage
 del namespace `not-enough-time:`, borra la caché de la cuenta conectada y
@@ -207,6 +227,9 @@ YouTube.
 - Sin backend propio ni base de datos remota de la aplicación.
 - Acceso limitado a usuarios de prueba mientras el proyecto permanezca en fase
   personal.
+- Solicitud de Compliance Audit preparada, pero no enviada.
+- Lanzamiento público bloqueado hasta resolver métricas derivadas, OAuth,
+  dominio y branding.
 
 ## Referencias oficiales
 
@@ -215,3 +238,6 @@ YouTube.
 - [Google OAuth 2.0 Policies](https://developers.google.com/identity/protocols/oauth2/policies)
 - [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy)
 - [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service)
+- [YouTube API Services Developer Policies](https://developers.google.com/youtube/terms/developer-policies)
+- [Additional policies for derived metrics and data storage](https://developers.google.com/youtube/terms/derived-metrics-policy)
+- [YouTube Branding Guidelines](https://developers.google.com/youtube/terms/branding-guidelines)

@@ -89,6 +89,24 @@ export function saveContentPreferences(
   }
 }
 
+export function clearContentPreferences(
+  accountId: string,
+  storage: LocalStorageLike | null = getBrowserLocalStorage()
+): boolean {
+  const key = contentPreferencesStorageKey(accountId)
+
+  if (!storage) {
+    return false
+  }
+
+  try {
+    storage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function clearAllAppLocalData(
   storage: LocalStorageLike | null = getBrowserLocalStorage()
 ): number {

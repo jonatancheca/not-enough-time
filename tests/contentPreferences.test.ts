@@ -10,6 +10,7 @@ import {
 import {
   APP_STORAGE_PREFIX,
   clearAllAppLocalData,
+  clearContentPreferences,
   contentPreferencesStorageKey,
   loadContentPreferences,
   saveContentPreferences,
@@ -141,7 +142,19 @@ describe('content preference persistence', () => {
     expect(clearAllAppLocalData(null)).toBe(0)
     expect(loadContentPreferences('account-a', unavailableStorage)).toEqual(preferences)
     expect(saveContentPreferences(preferences, unavailableStorage)).toBe(false)
+    expect(clearContentPreferences('account-a', null)).toBe(false)
+    expect(clearContentPreferences('account-a', unavailableStorage)).toBe(false)
     expect(clearAllAppLocalData(unavailableStorage)).toBe(0)
+  })
+
+  it('deletes only preferences linked to the revoked account', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(contentPreferencesStorageKey('account-a'), '{}')
+    storage.setItem(contentPreferencesStorageKey('account-b'), '{}')
+
+    expect(clearContentPreferences('account-a', storage)).toBe(true)
+    expect(storage.getItem(contentPreferencesStorageKey('account-a'))).toBeNull()
+    expect(storage.getItem(contentPreferencesStorageKey('account-b'))).toBe('{}')
   })
 
   it('clears only this application namespace without using a global clear', () => {

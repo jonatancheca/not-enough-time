@@ -31,8 +31,18 @@ test('generated Pages site loads from its subpath without real OAuth or YouTube 
       await expect(page.getByRole('heading', {
         name: 'Acceso de solo lectura a YouTube'
       })).toBeVisible()
-      await expect(page.getByRole('link', { name: 'Aviso de privacidad' }))
+      await expect(page.getByRole('heading', {
+        name: 'Uso personal y usuarios de prueba autorizados'
+      })).toBeVisible()
+      await expect(page.getByText('Solicitud de Compliance Audit preparada, pero no enviada.'))
+        .toBeVisible()
+      await expect(page.getByText(/son métricas propias de Not Enough Time/)).toBeVisible()
+      await expect(page.getByRole('link', { name: /Datos obtenidos mediante YouTube Data API/ }))
+        .toHaveAttribute('href', 'https://www.youtube.com/')
+      await expect(page.getByRole('link', { name: 'Aviso de privacidad', exact: true }))
         .toHaveAttribute('href', `${basePath}privacy/`)
+      await expect(page.getByRole('link', { name: 'Términos de uso', exact: true }))
+        .toHaveAttribute('href', `${basePath}terms/`)
 
       const geometry = await page.evaluate(() => {
         const main = document.querySelector('main')
@@ -85,6 +95,44 @@ test('privacy notice is generated, public and usable from the Pages subpath', as
         .toHaveAttribute('href', basePath)
       await expect(page.getByRole('link', { name: 'repositorio de Not Enough Time' }))
         .toHaveAttribute('href', 'https://github.com/jonatancheca/not-enough-time/issues')
+      await expect(page.getByRole('link', { name: 'Términos de uso de Not Enough Time', exact: true }))
+        .toHaveAttribute('href', `${basePath}terms/`)
+      await expect(page.getByRole('link', { name: /configuración de seguridad de Google/ }))
+        .toHaveAttribute('href', 'https://security.google.com/settings/security/permissions')
+
+      const geometry = await page.evaluate(() => ({
+        documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+        viewportWidth: window.innerWidth
+      }))
+
+      expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
+    })
+  }
+})
+
+test('terms are generated, public and linked to governing policies', async ({ page }) => {
+  await page.route('https://accounts.google.com/**', async (route) => {
+    await route.fulfill({ body: '', contentType: 'text/javascript', status: 200 })
+  })
+
+  for (const viewport of viewports) {
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize({ height: viewport.height, width: viewport.width })
+      const response = await page.goto('./terms/', { waitUntil: 'networkidle' })
+
+      expect(response?.ok()).toBe(true)
+      await expect(page).toHaveURL(new RegExp(`${escapeRegExp(basePath)}terms/$`))
+      await expect(page.getByRole('heading', { level: 1, name: 'Términos de uso' }))
+        .toBeVisible()
+      await expect(page.getByText('Compliance Audit está preparada, pero no enviada'))
+        .toBeVisible()
+      await expect(page.getByRole('link', { name: 'aviso de privacidad' }))
+        .toHaveAttribute('href', `${basePath}privacy/`)
+      await expect(page.getByRole('link', { name: /Términos del Servicio de YouTube/ }).first())
+        .toHaveAttribute('href', 'https://www.youtube.com/t/terms')
+      await expect(page.getByRole('link', {
+        name: /Política de datos de usuario de los servicios API de Google/
+      })).toHaveAttribute('href', 'https://developers.google.com/terms/api-services-user-data-policy')
 
       const geometry = await page.evaluate(() => ({
         documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),

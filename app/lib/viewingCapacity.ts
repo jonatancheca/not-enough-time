@@ -132,6 +132,24 @@ export function saveDailyCapacityMinutes(
   }
 }
 
+export function clearDailyCapacityMinutes(
+  accountId: string,
+  storage: LocalStorageLike | null = getBrowserLocalStorage()
+): boolean {
+  const key = dailyCapacityStorageKey(accountId)
+
+  if (!storage) {
+    return false
+  }
+
+  try {
+    storage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function normalizeSeconds(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     return 0

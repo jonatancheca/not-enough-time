@@ -1,6 +1,7 @@
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import {
   clearAllAppLocalData,
+  clearContentPreferences,
   loadContentPreferences,
   saveContentPreferences
 } from '~/lib/contentPreferences'
@@ -26,6 +27,7 @@ import {
   type YouTubeSyncState
 } from '~/lib/youtubeSync'
 import { buildEligibleWatchload } from '~/lib/watchload'
+import { clearDailyCapacityMinutes } from '~/lib/viewingCapacity'
 
 export const MOCK_YOUTUBE_ACCOUNT_ID = 'mock-youtube-account'
 
@@ -153,6 +155,7 @@ export function useYoutubeWatchload() {
       auth.reportExpired()
     } else if (kinds.has('permission_revoked')) {
       void clearApiCache(accountId.value)
+      clearAccountLocalData(accountId.value)
       auth.reportRevoked()
     }
   }
@@ -189,6 +192,15 @@ export function useYoutubeWatchload() {
     await syncManager.disconnect(targetAccountId)
   }
 
+  function clearAccountLocalData(targetAccountId = accountId.value) {
+    if (!targetAccountId) {
+      return
+    }
+
+    clearContentPreferences(targetAccountId)
+    clearDailyCapacityMinutes(targetAccountId)
+  }
+
   async function disconnectAccount() {
     if (mockMode) {
       return
@@ -199,6 +211,7 @@ export function useYoutubeWatchload() {
 
     if (auth.status.value === 'revoked') {
       await clearApiCache(connectedAccountId)
+      clearAccountLocalData(connectedAccountId)
       resetSession()
       clearNuxtData((key) => key.startsWith('youtube-api:'))
     }

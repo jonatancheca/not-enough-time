@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Info, KeyRound, LogOut, RefreshCw } from '@lucide/vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { YouTubeAuthStatus } from '~/lib/youtubeAuth'
 
 const props = defineProps<{
@@ -34,6 +34,7 @@ const canConnect = computed(() => ['disconnected', 'denied', 'revoked'].includes
 const canReauthorize = computed(() => props.authStatus === 'expired')
 const canManageConnection = computed(() => ['connected', 'expired'].includes(props.authStatus))
 const isRequesting = computed(() => props.authStatus === 'requesting')
+const acceptedTerms = ref(false)
 </script>
 
 <template>
@@ -77,14 +78,34 @@ const isRequesting = computed(() => props.authStatus === 'requesting')
         <p v-if="authError" class="mt-2 text-sm font-medium text-red-700" role="alert">
           {{ authError }}
         </p>
+        <label class="mt-4 flex max-w-3xl items-start gap-3 text-sm text-slate-700">
+          <input
+            v-model="acceptedTerms"
+            type="checkbox"
+            class="mt-1 size-6 shrink-0 accent-red-600"
+          >
+          <span>
+            He leído y acepto el
+            <NuxtLink
+              to="/privacy/"
+              class="inline-flex min-h-6 items-center py-1 font-semibold text-red-700 underline underline-offset-4"
+            >aviso de privacidad</NuxtLink>
+            y los
+            <NuxtLink
+              to="/terms/"
+              class="inline-flex min-h-6 items-center py-1 font-semibold text-red-700 underline underline-offset-4"
+            >términos de uso</NuxtLink>
+            antes de conectar mi cuenta.
+          </span>
+        </label>
       </div>
 
       <div class="flex flex-wrap gap-2">
         <button
           v-if="canConnect || authStatus === 'missing_configuration' || isRequesting"
           type="button"
-          class="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="authStatus === 'missing_configuration' || isRequesting"
+          class="inline-flex h-10 items-center gap-2 rounded-md bg-red-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="authStatus === 'missing_configuration' || isRequesting || !acceptedTerms"
           @click="emit('connect')"
         >
           <RefreshCw v-if="isRequesting" class="size-4 animate-spin" aria-hidden="true" />
@@ -95,7 +116,8 @@ const isRequesting = computed(() => props.authStatus === 'requesting')
         <button
           v-if="canReauthorize"
           type="button"
-          class="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
+          class="inline-flex h-10 items-center gap-2 rounded-md bg-red-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-800"
+          :disabled="!acceptedTerms"
           @click="emit('reauthorize')"
         >
           <RefreshCw class="size-4" aria-hidden="true" />

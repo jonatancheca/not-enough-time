@@ -11,16 +11,31 @@ const baseProps = {
   disconnecting: false,
   showHelp: false
 }
+const global = {
+  stubs: {
+    NuxtLink: {
+      props: ['to'],
+      template: '<a :href="to"><slot /></a>'
+    }
+  }
+}
 
 describe('YouTube connection panel', () => {
-  it('allows connecting from the disconnected state', () => {
-    const wrapper = mount(YoutubeConnectionPanel, { props: baseProps })
+  it('requires explicit terms acceptance before connecting', async () => {
+    const wrapper = mount(YoutubeConnectionPanel, { global, props: baseProps })
+
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('input[type="checkbox"]').setValue(true)
 
     expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('a[href="/privacy/"]').text()).toBe('aviso de privacidad')
+    expect(wrapper.get('a[href="/terms/"]').text()).toBe('términos de uso')
   })
 
   it('keeps missing public OAuth configuration safe and actionable', () => {
     const wrapper = mount(YoutubeConnectionPanel, {
+      global,
       props: {
         ...baseProps,
         authStatus: 'missing_configuration'
@@ -34,6 +49,7 @@ describe('YouTube connection panel', () => {
 
   it('renders requesting, expired and denied OAuth states', async () => {
     const wrapper = mount(YoutubeConnectionPanel, {
+      global,
       props: {
         ...baseProps,
         authStatus: 'requesting'
@@ -44,6 +60,7 @@ describe('YouTube connection panel', () => {
     expect(wrapper.get('button').text()).toContain('Solicitando permiso')
 
     await wrapper.setProps({ authStatus: 'expired' })
+    await wrapper.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('button').trigger('click')
     expect(wrapper.emitted('reauthorize')).toHaveLength(1)
 
@@ -53,6 +70,7 @@ describe('YouTube connection panel', () => {
 
   it('shows connected identity and emits connection controls', async () => {
     const wrapper = mount(YoutubeConnectionPanel, {
+      global,
       props: {
         ...baseProps,
         accountId: 'ci-test-account',

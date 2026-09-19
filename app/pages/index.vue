@@ -421,6 +421,32 @@ watch(
         </div>
       </header>
 
+      <section
+        class="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-soft"
+        aria-labelledby="access-status-title"
+      >
+        <h2 id="access-status-title" class="font-semibold">
+          Uso personal y usuarios de prueba autorizados
+        </h2>
+        <p class="mt-2">
+          Lanzamiento público bloqueado. Solicitud de Compliance Audit preparada, pero no enviada.
+          Google y YouTube no han aprobado ni certificado esta aplicación.
+        </p>
+        <p class="mt-2">
+          Carga de publicación, ranking, porcentajes, categorías por duración, ritmo diario y
+          comparación con capacidad son métricas propias de Not Enough Time: YouTube no las
+          proporciona ni las aprueba.
+        </p>
+        <a
+          href="https://www.youtube.com/"
+          target="_blank"
+          rel="noreferrer"
+          class="mt-3 inline-flex min-h-6 items-center py-1 font-semibold text-red-800 underline underline-offset-4"
+        >
+          Datos obtenidos mediante YouTube Data API<span class="sr-only"> (se abre en una pestaña nueva)</span>
+        </a>
+      </section>
+
       <YoutubeConnectionPanel
         v-if="!mockMode"
         :account-id="data?.accountId ?? null"
@@ -771,13 +797,27 @@ watch(
         </section>
       </template>
 
-      <footer class="border-t border-slate-200 py-5 text-sm text-slate-600">
+      <footer class="flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 py-5 text-sm text-slate-600">
         <NuxtLink
           to="/privacy/"
-          class="inline-flex min-h-6 min-w-6 items-center font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-red-600"
+          class="inline-flex min-h-6 min-w-6 items-center py-1 font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-red-600"
         >
           Aviso de privacidad
         </NuxtLink>
+        <NuxtLink
+          to="/terms/"
+          class="inline-flex min-h-6 min-w-6 items-center py-1 font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-red-600"
+        >
+          Términos de uso
+        </NuxtLink>
+        <a
+          href="https://www.youtube.com/"
+          target="_blank"
+          rel="noreferrer"
+          class="inline-flex min-h-6 min-w-6 items-center py-1 font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-red-600"
+        >
+          YouTube<span class="sr-only"> (se abre en una pestaña nueva)</span>
+        </a>
       </footer>
     </main>
   </div>

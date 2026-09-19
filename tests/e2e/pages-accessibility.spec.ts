@@ -49,7 +49,12 @@ test('disconnected OAuth state is accessible without contacting Google or YouTub
       await page.goto('./', { waitUntil: 'domcontentloaded' })
 
       await expect(page.getByText('Desconectado', { exact: true })).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Conectar cuenta' })).toBeVisible()
+      const connectButton = page.getByRole('button', { name: 'Conectar cuenta' })
+      await expect(connectButton).toBeDisabled()
+      await page.getByRole('checkbox', {
+        name: /He leído y acepto el aviso de privacidad y los términos de uso/
+      }).check()
+      await expect(connectButton).toBeEnabled()
       await expectAccessiblePage(page)
       await expectMinimumInteractiveTargets(page)
       await expectNoHorizontalOverflow(page)
@@ -69,6 +74,24 @@ test('privacy notice is accessible and responsive', async ({ page }) => {
       await expect(page.getByRole('heading', { level: 1, name: 'Aviso de privacidad' }))
         .toBeVisible()
       await expect(page.getByRole('region', { name: 'Resumen de datos guardados' }))
+        .toBeVisible()
+      await expectAccessiblePage(page)
+      await expectMinimumInteractiveTargets(page)
+      await expectNoHorizontalOverflow(page)
+    })
+  }
+})
+
+test('terms are accessible and responsive', async ({ page }) => {
+  for (const viewport of viewports) {
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize(viewport)
+      await page.goto('./terms/', { waitUntil: 'domcontentloaded' })
+
+      await expect(page.locator('html')).toHaveAttribute('lang', 'es')
+      await expect(page.getByRole('heading', { level: 1, name: 'Términos de uso' }))
+        .toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Fase personal y de pruebas' }))
         .toBeVisible()
       await expectAccessiblePage(page)
       await expectMinimumInteractiveTargets(page)
