@@ -31,6 +31,8 @@ test('generated Pages site loads from its subpath without real OAuth or YouTube 
       await expect(page.getByRole('heading', {
         name: 'Acceso de solo lectura a YouTube'
       })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Aviso de privacidad' }))
+        .toHaveAttribute('href', `${basePath}privacy/`)
 
       const geometry = await page.evaluate(() => {
         const main = document.querySelector('main')
@@ -63,7 +65,42 @@ test('generated Pages site loads from its subpath without real OAuth or YouTube 
   expect(youtubeRequests).toEqual([])
 })
 
+test('privacy notice is generated, public and usable from the Pages subpath', async ({ page }) => {
+  await page.route('https://accounts.google.com/**', async (route) => {
+    await route.fulfill({ body: '', contentType: 'text/javascript', status: 200 })
+  })
+
+  for (const viewport of viewports) {
+    await test.step(viewport.name, async () => {
+      await page.setViewportSize({ height: viewport.height, width: viewport.width })
+      const response = await page.goto('./privacy/', { waitUntil: 'networkidle' })
+
+      expect(response?.ok()).toBe(true)
+      await expect(page).toHaveURL(new RegExp(`${escapeRegExp(basePath)}privacy/$`))
+      await expect(page.getByRole('heading', { level: 1, name: 'Aviso de privacidad' }))
+        .toBeVisible()
+      await expect(page.getByText('Este aviso no supone que Google o YouTube hayan aprobado'))
+        .toBeVisible()
+      await expect(page.getByRole('link', { name: 'Volver a Not Enough Time' }))
+        .toHaveAttribute('href', basePath)
+      await expect(page.getByRole('link', { name: 'repositorio de Not Enough Time' }))
+        .toHaveAttribute('href', 'https://github.com/jonatancheca/not-enough-time/issues')
+
+      const geometry = await page.evaluate(() => ({
+        documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+        viewportWidth: window.innerWidth
+      }))
+
+      expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1)
+    })
+  }
+})
+
 function normalizeBasePath(value: string): string {
   const withLeadingSlash = value.startsWith('/') ? value : `/${value}`
   return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

@@ -1,0 +1,3 @@
+# Usar una integración de YouTube solo en el navegador sobre GitHub Pages
+
+Not Enough Time se mantiene como aplicación Nuxt estática para su responsable y usuarios de prueba conocidos. Usa el token model de Google Identity Services con permiso de solo lectura, conserva el access token únicamente en memoria y guarda preferencias y datos temporales de YouTube en el navegador; descarta un backend, client secret, refresh token y API key privada para reducir infraestructura y exposición, a cambio de no ofrecer sincronización entre dispositivos, actualización en segundo plano ni autorización persistente.

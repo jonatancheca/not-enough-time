@@ -1,41 +1,41 @@
 # Not Enough Time
 
-Not Enough Time measures how much viewing time a person's YouTube subscriptions publish. It describes publication pressure, not the person's unwatched backlog or viewing history.
+Not Enough Time describe la presión que generan las publicaciones de los canales suscritos y la compara con el tiempo diario disponible de una persona. No modela su historial de reproducción ni una lista de vídeos pendientes.
 
-## Language
+## Lenguaje
 
-**Publication load**:
-The total duration of eligible videos published by the user's subscribed channels during a rolling time window.
-_Avoid_: Backlog, pending videos, unwatched videos
+**Carga de publicación**:
+Duración total de los vídeos elegibles publicados por los canales suscritos durante una ventana móvil.
+_Evitar_: Backlog, vídeos pendientes, vídeos no vistos
 
-**Required daily pace**:
-The average viewing time per day needed to match the publication load for a selected period.
-_Avoid_: Time remaining, watch-time target
+**Ritmo diario requerido**:
+Tiempo medio diario necesario para igualar la carga de publicación de un periodo.
+_Evitar_: Tiempo restante, objetivo de reproducción, ritmo necesario
 
-**Viewing capacity**:
-The amount of time the user expects to have available for watching published videos. It is compared with the required daily pace.
-_Avoid_: Free time, watch history
+**Capacidad diaria**:
+Tiempo que la persona espera poder dedicar cada día a ver publicaciones.
+_Evitar_: Tiempo libre, historial de reproducción, carga diaria
 
-**Subscribed channel**:
-A YouTube channel followed by the connected user, whether or not the user includes it in publication-load calculations.
-_Avoid_: Creator, account
+**Canal suscrito**:
+Canal de YouTube al que sigue la cuenta conectada, tanto si participa en los cálculos como si está excluido.
+_Evitar_: Creador, cuenta
 
-**Excluded subscription**:
-A subscribed channel that the user has chosen to omit entirely from publication-load calculations.
-_Avoid_: Unsubscribed channel, blocked channel
+**Suscripción excluida**:
+Canal suscrito que la persona omite por completo de los cálculos de carga de publicación.
+_Evitar_: Canal desuscrito, canal bloqueado
 
-**Channel content rule**:
-A preference that excludes selected kinds or durations of videos from one subscribed channel while leaving that channel included.
-_Avoid_: Channel filter, global filter
+**Regla de contenido por canal**:
+Preferencia que excluye categorías de vídeo de un canal suscrito sin excluir necesariamente el canal completo.
+_Evitar_: Filtro de canal, filtro global
 
-**Short video**:
-A completed, non-live video whose duration is less than five minutes.
-_Avoid_: Short, YouTube Short
+**Vídeo corto**:
+Vídeo que no es una emisión en directo y dura menos de cinco minutos.
+_Evitar_: Short, YouTube Short
 
-**Long video**:
-A completed, non-live video whose duration is five minutes or longer.
-_Avoid_: Regular video, standard video
+**Vídeo largo**:
+Vídeo que no es una emisión en directo y dura cinco minutos o más.
+_Evitar_: Vídeo normal, vídeo estándar
 
-**Live broadcast**:
-A video identified by YouTube as an upcoming, active, or completed live broadcast. It is classified separately instead of also being short or long.
-_Avoid_: Stream, long video
+**Emisión en directo**:
+Vídeo que YouTube identifica como emisión próxima, activa o finalizada; nunca se clasifica además como vídeo corto o largo.
+_Evitar_: Stream, vídeo largo
