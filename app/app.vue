@@ -5,10 +5,7 @@ import {
   Clock3,
   Database,
   Gauge,
-  Info,
-  KeyRound,
   ListVideo,
-  LogOut,
   PlayCircle,
   RefreshCw,
   Settings2,
@@ -17,7 +14,7 @@ import {
   TvMinimalPlay
 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import type { VideoContentCategory } from '~/lib/contentRules'
+import type { StateNoticeContent } from '~/components/StateNotice.vue'
 import { selectWatchloadViewState } from '~/lib/watchloadView'
 import { formatDuration, formatHours, getVideoWindow, isWithinWindow, WATCHLOAD_WINDOWS } from '~/lib/watchload'
 import {
@@ -27,7 +24,6 @@ import {
   saveDailyCapacityMinutes,
   type DailyCapacityStatus
 } from '~/lib/viewingCapacity'
-import type { YouTubeAuthStatus } from '~/lib/youtubeAuth'
 import type { PublishedVideo, SubscribedChannel } from '~/lib/youtubeTypes'
 
 const {
@@ -88,41 +84,12 @@ const windowOptions = [
   { key: 'week', label: '7 dias' },
   { key: 'day', label: '24 h' }
 ] as const
-const contentCategories = [
-  { key: 'short', label: 'Cortos' },
-  { key: 'long', label: 'Largos' },
-  { key: 'live', label: 'Directos' }
-] as const
-
 const windowLabels = {
   day: 'ultimas 24 h',
   week: 'ultimos 7 dias',
   month: 'ultimos 30 dias',
   older: 'fuera'
 } as const
-
-const authStatusLabels: Record<YouTubeAuthStatus, string> = {
-  disconnected: 'Desconectado',
-  requesting: 'Solicitando permiso',
-  connected: 'Conectado',
-  expired: 'Token caducado',
-  denied: 'Permiso denegado',
-  revoked: 'Permiso revocado',
-  missing_configuration: 'Configuración ausente'
-}
-
-const authStatusLabel = computed(() => authStatusLabels[authStatus.value])
-const canConnect = computed(() =>
-  ['disconnected', 'denied', 'revoked'].includes(authStatus.value)
-)
-const canReauthorize = computed(() => authStatus.value === 'expired')
-const canManageConnection = computed(() =>
-  ['connected', 'expired'].includes(authStatus.value)
-)
-const isRequestingPermission = computed(() => authStatus.value === 'requesting')
-const showOnboarding = computed(() =>
-  !mockMode && (authStatus.value !== 'connected' || showConnectionHelp.value)
-)
 
 const capacityStatusLabels: Record<DailyCapacityStatus, string> = {
   sufficient: 'Capacidad suficiente',
@@ -173,7 +140,7 @@ const failedChannelNames = computed(() => {
     .filter((channel) => failedIds.has(channel.id))
     .map((channel) => channel.title) ?? []
 })
-const stateNotice = computed(() => {
+const stateNotice = computed<StateNoticeContent | null>(() => {
   if (viewState.value === 'syncing') {
     return { tone: 'blue', title: 'Sincronizando con YouTube', detail: 'Puedes seguir usando los datos guardados mientras termina.' }
   }
@@ -331,14 +298,6 @@ function loadMoreChannels() {
   channelLimit.value += 10
 }
 
-function updateChannelRule(channelId: string, event: Event) {
-  updateChannelExcluded(channelId, (event.target as HTMLInputElement).checked)
-}
-
-function updateCategoryRule(channelId: string, category: VideoContentCategory, event: Event) {
-  updateCategoryExcluded(channelId, category, (event.target as HTMLInputElement).checked)
-}
-
 async function handleDisconnect() {
   isDisconnecting.value = true
 
@@ -438,150 +397,26 @@ watch(
         </div>
       </header>
 
-      <section
-        v-if="showOnboarding"
-        class="rounded-md border border-slate-200 bg-white p-4 shadow-soft"
-        aria-labelledby="youtube-authorization-title"
-        :aria-busy="isRequestingPermission"
-      >
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <KeyRound class="size-5 text-red-600" aria-hidden="true" />
-              <h2 id="youtube-authorization-title" class="font-semibold text-slate-950">
-                Acceso de solo lectura a YouTube
-              </h2>
-              <span
-                class="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
-                aria-live="polite"
-              >
-                {{ authStatusLabel }}
-              </span>
-            </div>
-            <p class="mt-2 text-sm text-slate-600">
-              Not Enough Time consulta tus suscripciones y la duración de sus publicaciones recientes
-              para calcular la carga de publicación. No consulta historial de reproducción ni modifica tu cuenta.
-            </p>
-            <ul class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-              <li class="rounded-md bg-slate-50 p-3">Permiso solicitado: solo lectura de YouTube.</li>
-              <li class="rounded-md bg-slate-50 p-3">Token solo en memoria; desaparece al recargar.</li>
-              <li class="rounded-md bg-slate-50 p-3">Preferencias guardadas solo en este navegador.</li>
-              <li class="rounded-md bg-slate-50 p-3">Uso personal y con usuarios de prueba autorizados.</li>
-            </ul>
-            <p
-              v-if="authStatus === 'missing_configuration'"
-              class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900"
-              role="status"
-            >
-              Falta configurar el Google OAuth Client ID para este sitio.
-            </p>
-            <p v-if="authError" class="mt-2 text-sm font-medium text-red-700" role="alert">
-              {{ authError }}
-            </p>
-          </div>
+      <YoutubeConnectionPanel
+        v-if="!mockMode"
+        :account-id="data?.accountId ?? null"
+        :auth-error="authError"
+        :auth-status="authStatus"
+        :disconnecting="isDisconnecting"
+        :show-help="showConnectionHelp"
+        @close-help="showConnectionHelp = false"
+        @connect="connect"
+        @disconnect="handleDisconnect"
+        @reauthorize="reauthorize"
+        @show-help="showConnectionHelp = true"
+      />
 
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-if="canConnect || authStatus === 'missing_configuration' || isRequestingPermission"
-              type="button"
-              class="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="authStatus === 'missing_configuration' || isRequestingPermission"
-              @click="connect"
-            >
-              <RefreshCw
-                v-if="isRequestingPermission"
-                class="size-4 animate-spin"
-                aria-hidden="true"
-              />
-              <KeyRound v-else class="size-4" aria-hidden="true" />
-              {{ isRequestingPermission ? 'Solicitando permiso' : 'Conectar cuenta' }}
-            </button>
-
-            <button
-              v-if="canReauthorize"
-              type="button"
-              class="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
-              @click="reauthorize"
-            >
-              <RefreshCw class="size-4" aria-hidden="true" />
-              Volver a autorizar
-            </button>
-
-            <button
-              v-if="canManageConnection"
-              type="button"
-              class="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              :disabled="isDisconnecting"
-              @click="handleDisconnect"
-            >
-              <LogOut class="size-4" aria-hidden="true" />
-              {{ isDisconnecting ? 'Desconectando' : 'Desconectar' }}
-            </button>
-
-            <button
-              v-if="authStatus === 'connected' && showConnectionHelp"
-              type="button"
-              class="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              @click="showConnectionHelp = false"
-            >
-              Cerrar ayuda
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section
-        v-else-if="!mockMode && authStatus === 'connected'"
-        class="flex flex-col gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div class="min-w-0">
-          <p class="font-semibold text-emerald-900">Cuenta de YouTube conectada</p>
-          <p class="mt-1 text-sm text-emerald-800">Permiso de solo lectura. Identidad: {{ data?.accountId ?? 'cargando' }}.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-900"
-            @click="showConnectionHelp = true"
-          >
-            <Info class="size-4" aria-hidden="true" />
-            Cómo funciona
-          </button>
-          <button
-            type="button"
-            class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-900 disabled:opacity-60"
-            :disabled="isDisconnecting"
-            @click="handleDisconnect"
-          >
-            <LogOut class="size-4" aria-hidden="true" />
-            Desconectar
-          </button>
-        </div>
-      </section>
-
-      <section
-        v-if="stateNotice"
-        class="rounded-md border p-4 text-sm"
-        :class="stateNotice.tone === 'red'
-          ? 'border-red-200 bg-red-50 text-red-800'
-          : stateNotice.tone === 'amber'
-            ? 'border-amber-200 bg-amber-50 text-amber-900'
-            : 'border-sky-200 bg-sky-50 text-sky-900'"
-        role="status"
-        aria-live="polite"
-      >
-        <p class="font-semibold">{{ stateNotice.title }}</p>
-        <p class="mt-1">{{ stateNotice.detail }}</p>
-        <button
-          v-if="['recoverable_error', 'stale', 'empty_subscriptions'].includes(viewState)"
-          type="button"
-          class="mt-3 rounded-md bg-white px-3 py-2 font-semibold shadow-sm"
-          :disabled="isRefreshing"
-          @click="refreshData"
-        >
-          Reintentar
-        </button>
-      </section>
+      <StateNotice
+        :notice="stateNotice"
+        :refreshing="isRefreshing"
+        :retryable="['recoverable_error', 'stale', 'empty_subscriptions'].includes(viewState)"
+        @retry="refreshData"
+      />
 
       <section v-if="isLoading" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div v-for="index in 4" :key="index" class="h-36 animate-pulse rounded-md bg-white shadow-soft" />
@@ -768,30 +603,15 @@ watch(
                 </div>
               </div>
 
-              <div class="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
-                <label class="flex min-w-0 items-center gap-2 rounded-md border border-slate-200 p-3 font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    :checked="channelRule(channel.id).excluded"
-                    @change="updateChannelRule(channel.id, $event)"
-                  >
-                  Excluir canal
-                </label>
-                <label
-                  v-for="category in contentCategories"
-                  :key="category.key"
-                  class="flex min-w-0 items-center gap-2 rounded-md border border-slate-200 p-3 text-slate-700"
-                  :class="{ 'opacity-50': channelRule(channel.id).excluded }"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="channelRule(channel.id).excludedCategories[category.key]"
-                    :disabled="channelRule(channel.id).excluded"
-                    @change="updateCategoryRule(channel.id, category.key, $event)"
-                  >
-                  {{ category.label }}
-                </label>
-              </div>
+              <ChannelRuleControls
+                :rule="channelRule(channel.id)"
+                @channel-excluded="updateChannelExcluded(channel.id, $event)"
+                @category-excluded="updateCategoryExcluded(
+                  channel.id,
+                  $event.category,
+                  $event.excluded
+                )"
+              />
             </article>
           </div>
 

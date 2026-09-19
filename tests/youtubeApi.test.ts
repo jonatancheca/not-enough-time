@@ -20,7 +20,7 @@ describe('YouTube Data API client', () => {
   })
 
   it('paginates all subscriptions with maxResults 50 and bearer authorization', async () => {
-    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = new URL(String(input))
 
       if (url.searchParams.get('pageToken') === 'second-page') {

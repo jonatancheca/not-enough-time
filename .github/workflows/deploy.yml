@@ -39,22 +39,37 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Lint
+        run: pnpm lint
+
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
+      - name: Unit and component tests
         run: pnpm test
 
       - name: Generate static site
         run: pnpm generate
         env:
-          NUXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NUXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NUXT_APP_BASE_URL: "${{ steps.pages.outputs.base_path }}/"
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: Scan Pages artifact
+        run: pnpm test:artifact
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Smoke test generated site
+        run: pnpm test:e2e
+        env:
+          PLAYWRIGHT_BASE_PATH: "${{ steps.pages.outputs.base_path }}/"
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: .output/public
 
