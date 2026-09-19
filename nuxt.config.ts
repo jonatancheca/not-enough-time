@@ -9,7 +9,8 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
   runtimeConfig: {
     public: {
-      googleClientId: ''
+      googleClientId: '',
+      useYoutubeMock: false
     }
   },
   app: {
@@ -19,7 +20,7 @@ export default defineNuxtConfig({
       meta: [
         {
           name: 'description',
-          content: 'Dashboard mock para estimar las horas de YouTube que publican tus canales suscritos.'
+          content: 'Mide la carga de publicación de tus suscripciones de YouTube frente a tu capacidad diaria.'
         },
         {
           name: 'referrer',

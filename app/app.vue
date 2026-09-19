@@ -3,18 +3,22 @@ import {
   BarChart3,
   CalendarDays,
   Clock3,
+  Database,
   Gauge,
+  Info,
   KeyRound,
   ListVideo,
   LogOut,
   PlayCircle,
   RefreshCw,
-  ShieldOff,
+  Settings2,
   TrendingUp,
   Trophy,
   TvMinimalPlay
 } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import type { VideoContentCategory } from '~/lib/contentRules'
+import { selectWatchloadViewState } from '~/lib/watchloadView'
 import { formatDuration, formatHours, getVideoWindow, isWithinWindow, WATCHLOAD_WINDOWS } from '~/lib/watchload'
 import {
   compareDailyCapacity,
@@ -26,26 +30,41 @@ import {
 import type { YouTubeAuthStatus } from '~/lib/youtubeAuth'
 import type { PublishedVideo, SubscribedChannel } from '~/lib/youtubeTypes'
 
-const { data, error, refresh, status } = useYoutubeWatchload()
+const {
+  auth,
+  channelRule,
+  clearAllLocalData,
+  data,
+  disconnectAccount,
+  error,
+  failedChannelIds,
+  identityLoading,
+  mockMode,
+  refresh,
+  refreshing,
+  syncState,
+  updateCategoryExcluded,
+  updateChannelExcluded
+} = useYoutubeWatchload()
 const {
   connect,
-  disconnect,
   error: authError,
-  probe,
-  probeMessage,
-  probeStatus,
   reauthorize,
-  revoke,
   status: authStatus
-} = useYoutubeAuth()
+} = auth
 
 const hasHydrated = ref(false)
 const selectedWindow = ref<'day' | 'week' | 'month'>('month')
 const capacityMinutes = ref(0)
+const videoLimit = ref(10)
+const channelLimit = ref(10)
+const showConnectionHelp = ref(false)
+const isDisconnecting = ref(false)
 
-const isRefreshing = computed(() => hasHydrated.value && status.value === 'pending')
-const isLoading = computed(() => !hasHydrated.value || (status.value === 'pending' && !data.value))
-const generatedAt = computed(() => (data.value ? new Date(data.value.generatedAt) : new Date()))
+const isRefreshing = computed(() => hasHydrated.value && refreshing.value)
+const isLoading = computed(() =>
+  !hasHydrated.value || ['loading', 'authorizing'].includes(viewState.value)
+)
 const subscriptionsById = computed(() => {
   const entries = data.value?.subscriptions.map((channel) => [channel.id, channel] as const) ?? []
   return new Map<string, SubscribedChannel>(entries)
@@ -54,11 +73,25 @@ const capacityComparison = computed(() => compareDailyCapacity(
   data.value?.summary.requiredDailySeconds ?? 0,
   capacityMinutes.value
 ))
+const viewState = computed(() => selectWatchloadViewState({
+  authStatus: authStatus.value,
+  mockMode,
+  identityLoading: identityLoading.value,
+  error: error.value,
+  syncState: syncState.value,
+  subscriptionCount: data.value?.subscriptions.length ?? 0,
+  eligibleVideoCount: data.value?.videos.length ?? 0
+}))
 
 const windowOptions = [
   { key: 'month', label: '30 dias' },
   { key: 'week', label: '7 dias' },
   { key: 'day', label: '24 h' }
+] as const
+const contentCategories = [
+  { key: 'short', label: 'Cortos' },
+  { key: 'long', label: 'Largos' },
+  { key: 'live', label: 'Directos' }
 ] as const
 
 const windowLabels = {
@@ -87,6 +120,9 @@ const canManageConnection = computed(() =>
   ['connected', 'expired'].includes(authStatus.value)
 )
 const isRequestingPermission = computed(() => authStatus.value === 'requesting')
+const showOnboarding = computed(() =>
+  !mockMode && (authStatus.value !== 'connected' || showConnectionHelp.value)
+)
 
 const capacityStatusLabels: Record<DailyCapacityStatus, string> = {
   sufficient: 'Capacidad suficiente',
@@ -122,8 +158,58 @@ const visibleVideos = computed(() => {
   }
 
   return data.value.videos.filter((video) =>
-    isWithinWindow(video.publishedAt, generatedAt.value, WATCHLOAD_WINDOWS[selectedWindow.value])
+    isWithinWindow(video.publishedAt, new Date(), WATCHLOAD_WINDOWS[selectedWindow.value])
   )
+})
+const displayedVideos = computed(() => visibleVideos.value.slice(0, videoLimit.value))
+const hasMoreVideos = computed(() => displayedVideos.value.length < visibleVideos.value.length)
+const displayedChannels = computed(() => data.value?.subscriptions.slice(0, channelLimit.value) ?? [])
+const hasMoreChannels = computed(() =>
+  displayedChannels.value.length < (data.value?.subscriptions.length ?? 0)
+)
+const failedChannelNames = computed(() => {
+  const failedIds = new Set(failedChannelIds.value)
+  return data.value?.subscriptions
+    .filter((channel) => failedIds.has(channel.id))
+    .map((channel) => channel.title) ?? []
+})
+const stateNotice = computed(() => {
+  if (viewState.value === 'syncing') {
+    return { tone: 'blue', title: 'Sincronizando con YouTube', detail: 'Puedes seguir usando los datos guardados mientras termina.' }
+  }
+
+  if (viewState.value === 'stale') {
+    return { tone: 'amber', title: 'Datos pendientes de actualizar', detail: 'Se muestran los últimos datos guardados. Actualiza cuando tengas conexión.' }
+  }
+
+  if (viewState.value === 'partial') {
+    const names = failedChannelNames.value.join(', ')
+    return {
+      tone: 'amber',
+      title: 'Resultado parcial',
+      detail: names
+        ? `Faltan ${failedChannelNames.value.length} canales: ${names}. El resto de datos sigue disponible.`
+        : 'Faltan algunos canales. El resto de datos sigue disponible.'
+    }
+  }
+
+  if (viewState.value === 'recoverable_error') {
+    return { tone: 'red', title: 'No se pudo actualizar', detail: 'Error recuperable. Comprueba la conexión y vuelve a intentarlo.' }
+  }
+
+  if (viewState.value === 'blocking_error') {
+    return { tone: 'red', title: 'Sincronización bloqueada', detail: blockingErrorMessage(error.value?.kind) }
+  }
+
+  if (viewState.value === 'empty_subscriptions') {
+    return { tone: 'blue', title: 'No hay suscripciones', detail: 'Suscríbete a canales en YouTube y vuelve a actualizar.' }
+  }
+
+  if (viewState.value === 'empty_eligible') {
+    return { tone: 'blue', title: 'No hay vídeos elegibles', detail: 'Revisa las reglas por canal o vuelve a actualizar más tarde.' }
+  }
+
+  return null
 })
 
 const kpis = computed(() => {
@@ -177,7 +263,7 @@ function countVideos(windowKey: 'day' | 'week' | 'month'): number {
   }
 
   return data.value.videos.filter((video) =>
-    isWithinWindow(video.publishedAt, generatedAt.value, WATCHLOAD_WINDOWS[windowKey])
+    isWithinWindow(video.publishedAt, new Date(), WATCHLOAD_WINDOWS[windowKey])
   ).length
 }
 
@@ -186,7 +272,7 @@ function channelFor(video: PublishedVideo): SubscribedChannel | undefined {
 }
 
 function videoWindowLabel(video: PublishedVideo): string {
-  const windowKey = getVideoWindow(video.publishedAt, generatedAt.value)
+  const windowKey = getVideoWindow(video.publishedAt, new Date())
   return windowLabels[windowKey]
 }
 
@@ -237,6 +323,53 @@ function refreshData() {
   void refresh()
 }
 
+function loadMoreVideos() {
+  videoLimit.value += 10
+}
+
+function loadMoreChannels() {
+  channelLimit.value += 10
+}
+
+function updateChannelRule(channelId: string, event: Event) {
+  updateChannelExcluded(channelId, (event.target as HTMLInputElement).checked)
+}
+
+function updateCategoryRule(channelId: string, category: VideoContentCategory, event: Event) {
+  updateCategoryExcluded(channelId, category, (event.target as HTMLInputElement).checked)
+}
+
+async function handleDisconnect() {
+  isDisconnecting.value = true
+
+  try {
+    await disconnectAccount()
+  } finally {
+    isDisconnecting.value = false
+  }
+}
+
+async function handleClearAllData() {
+  if (!window.confirm('Se borrarán preferencias, capacidad y caché local. También se desconectará YouTube.')) {
+    return
+  }
+
+  await clearAllLocalData()
+  capacityMinutes.value = 0
+}
+
+function blockingErrorMessage(kind?: string): string {
+  if (kind === 'quota_exhausted') {
+    return 'La cuota de YouTube está agotada. Espera a que se restablezca antes de reintentar.'
+  }
+
+  if (kind === 'invalid_response') {
+    return 'YouTube devolvió datos no válidos. Vuelve a intentarlo más tarde.'
+  }
+
+  return error.value?.message ?? 'Los datos no están disponibles.'
+}
+
 onMounted(() => {
   hasHydrated.value = true
 })
@@ -249,6 +382,20 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  [selectedWindow, () => data.value?.videos],
+  () => {
+    videoLimit.value = 10
+  }
+)
+
+watch(
+  () => data.value?.subscriptions,
+  () => {
+    channelLimit.value = 10
+  }
 )
 </script>
 
@@ -271,14 +418,18 @@ watch(
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <div class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            Mock frontend-only
+          <div
+            v-if="mockMode"
+            class="rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800"
+          >
+            Fixture de desarrollo
           </div>
           <button
+            v-if="data"
             type="button"
             class="inline-flex h-10 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
             :disabled="isRefreshing"
-            title="Actualizar mock"
+            title="Actualizar datos de YouTube"
             @click="refreshData"
           >
             <RefreshCw class="size-4" :class="{ 'animate-spin': isRefreshing }" aria-hidden="true" />
@@ -288,11 +439,12 @@ watch(
       </header>
 
       <section
+        v-if="showOnboarding"
         class="rounded-md border border-slate-200 bg-white p-4 shadow-soft"
         aria-labelledby="youtube-authorization-title"
         :aria-busy="isRequestingPermission"
       >
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
               <KeyRound class="size-5 text-red-600" aria-hidden="true" />
@@ -307,18 +459,24 @@ watch(
               </span>
             </div>
             <p class="mt-2 text-sm text-slate-600">
-              El token permanece solo en memoria y desaparece al recargar o desconectar.
+              Not Enough Time consulta tus suscripciones y la duración de sus publicaciones recientes
+              para calcular la carga de publicación. No consulta historial de reproducción ni modifica tu cuenta.
+            </p>
+            <ul class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+              <li class="rounded-md bg-slate-50 p-3">Permiso solicitado: solo lectura de YouTube.</li>
+              <li class="rounded-md bg-slate-50 p-3">Token solo en memoria; desaparece al recargar.</li>
+              <li class="rounded-md bg-slate-50 p-3">Preferencias guardadas solo en este navegador.</li>
+              <li class="rounded-md bg-slate-50 p-3">Uso personal y con usuarios de prueba autorizados.</li>
+            </ul>
+            <p
+              v-if="authStatus === 'missing_configuration'"
+              class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+              role="status"
+            >
+              Falta configurar el Google OAuth Client ID para este sitio.
             </p>
             <p v-if="authError" class="mt-2 text-sm font-medium text-red-700" role="alert">
               {{ authError }}
-            </p>
-            <p
-              v-if="probeMessage"
-              class="mt-2 text-sm font-medium"
-              :class="probeStatus === 'success' ? 'text-emerald-700' : probeStatus === 'error' ? 'text-red-700' : 'text-slate-600'"
-              aria-live="polite"
-            >
-              {{ probeMessage }}
             </p>
           </div>
 
@@ -350,45 +508,79 @@ watch(
             </button>
 
             <button
-              v-if="authStatus === 'connected'"
-              type="button"
-              class="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
-              :disabled="probeStatus === 'checking'"
-              @click="probe"
-            >
-              <RefreshCw
-                class="size-4"
-                :class="{ 'animate-spin': probeStatus === 'checking' }"
-                aria-hidden="true"
-              />
-              Probar acceso
-            </button>
-
-            <button
               v-if="canManageConnection"
               type="button"
               class="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              @click="disconnect"
+              :disabled="isDisconnecting"
+              @click="handleDisconnect"
             >
               <LogOut class="size-4" aria-hidden="true" />
-              Desconectar
+              {{ isDisconnecting ? 'Desconectando' : 'Desconectar' }}
             </button>
 
             <button
-              v-if="canManageConnection"
+              v-if="authStatus === 'connected' && showConnectionHelp"
               type="button"
-              class="inline-flex h-10 items-center gap-2 rounded-md border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-              @click="revoke"
+              class="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              @click="showConnectionHelp = false"
             >
-              <ShieldOff class="size-4" aria-hidden="true" />
-              Revocar consentimiento
+              Cerrar ayuda
             </button>
           </div>
         </div>
       </section>
 
-      <section v-if="hasHydrated && error" class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        No se pudo cargar el mock de YouTube.
+      <section
+        v-else-if="!mockMode && authStatus === 'connected'"
+        class="flex flex-col gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="min-w-0">
+          <p class="font-semibold text-emerald-900">Cuenta de YouTube conectada</p>
+          <p class="mt-1 text-sm text-emerald-800">Permiso de solo lectura. Identidad: {{ data?.accountId ?? 'cargando' }}.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-900"
+            @click="showConnectionHelp = true"
+          >
+            <Info class="size-4" aria-hidden="true" />
+            Cómo funciona
+          </button>
+          <button
+            type="button"
+            class="inline-flex h-10 items-center gap-2 rounded-md border border-emerald-300 bg-white px-4 text-sm font-semibold text-emerald-900 disabled:opacity-60"
+            :disabled="isDisconnecting"
+            @click="handleDisconnect"
+          >
+            <LogOut class="size-4" aria-hidden="true" />
+            Desconectar
+          </button>
+        </div>
+      </section>
+
+      <section
+        v-if="stateNotice"
+        class="rounded-md border p-4 text-sm"
+        :class="stateNotice.tone === 'red'
+          ? 'border-red-200 bg-red-50 text-red-800'
+          : stateNotice.tone === 'amber'
+            ? 'border-amber-200 bg-amber-50 text-amber-900'
+            : 'border-sky-200 bg-sky-50 text-sky-900'"
+        role="status"
+        aria-live="polite"
+      >
+        <p class="font-semibold">{{ stateNotice.title }}</p>
+        <p class="mt-1">{{ stateNotice.detail }}</p>
+        <button
+          v-if="['recoverable_error', 'stale', 'empty_subscriptions'].includes(viewState)"
+          type="button"
+          class="mt-3 rounded-md bg-white px-3 py-2 font-semibold shadow-sm"
+          :disabled="isRefreshing"
+          @click="refreshData"
+        >
+          Reintentar
+        </button>
       </section>
 
       <section v-if="isLoading" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -534,6 +726,100 @@ watch(
           </aside>
         </section>
 
+        <section
+          id="channel-rules"
+          class="rounded-md border border-slate-200 bg-white shadow-soft"
+        >
+          <div class="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-slate-950">
+                <Settings2 class="size-5 text-violet-600" aria-hidden="true" />
+                <h2 class="text-lg font-semibold">Suscripciones y reglas</h2>
+              </div>
+              <p class="mt-1 text-sm text-slate-500">
+                Excluir contenido recalcula todo al instante, sin otra llamada a YouTube.
+              </p>
+            </div>
+            <span class="text-sm text-slate-500">{{ data.subscriptions.length }} canales</span>
+          </div>
+
+          <div v-if="data.subscriptions.length" class="divide-y divide-slate-100">
+            <article
+              v-for="channel in displayedChannels"
+              :key="channel.id"
+              class="grid min-w-0 gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:items-center"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <img
+                  :src="channel.avatarUrl"
+                  :alt="channel.title"
+                  class="size-11 shrink-0 rounded-md object-cover"
+                >
+                <div class="min-w-0">
+                  <h3 class="truncate font-semibold text-slate-950">{{ channel.title }}</h3>
+                  <a
+                    :href="channel.url"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="text-sm text-slate-500 hover:text-red-600"
+                  >
+                    Abrir canal
+                  </a>
+                </div>
+              </div>
+
+              <div class="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <label class="flex min-w-0 items-center gap-2 rounded-md border border-slate-200 p-3 font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    :checked="channelRule(channel.id).excluded"
+                    @change="updateChannelRule(channel.id, $event)"
+                  >
+                  Excluir canal
+                </label>
+                <label
+                  v-for="category in contentCategories"
+                  :key="category.key"
+                  class="flex min-w-0 items-center gap-2 rounded-md border border-slate-200 p-3 text-slate-700"
+                  :class="{ 'opacity-50': channelRule(channel.id).excluded }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="channelRule(channel.id).excludedCategories[category.key]"
+                    :disabled="channelRule(channel.id).excluded"
+                    @change="updateCategoryRule(channel.id, category.key, $event)"
+                  >
+                  {{ category.label }}
+                </label>
+              </div>
+            </article>
+          </div>
+
+          <div v-else class="p-5 text-sm text-slate-600">
+            No hay suscripciones que configurar.
+          </div>
+
+          <div class="flex flex-col gap-3 border-t border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              v-if="hasMoreChannels"
+              type="button"
+              class="h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              @click="loadMoreChannels"
+            >
+              Mostrar 10 canales más
+            </button>
+            <span v-else />
+            <button
+              type="button"
+              class="inline-flex h-10 items-center gap-2 rounded-md border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 hover:bg-red-50"
+              @click="handleClearAllData"
+            >
+              <Database class="size-4" aria-hidden="true" />
+              Borrar datos locales
+            </button>
+          </div>
+        </section>
+
         <section class="rounded-md border border-slate-200 bg-white shadow-soft">
           <div class="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex items-center gap-2 text-slate-950">
@@ -557,7 +843,7 @@ watch(
 
           <div class="divide-y divide-slate-100">
             <article
-              v-for="video in visibleVideos"
+              v-for="video in displayedVideos"
               :key="video.id"
               class="grid gap-4 p-5 md:grid-cols-[180px_minmax(0,1fr)_160px]"
             >
@@ -591,6 +877,21 @@ watch(
                 </a>
               </div>
             </article>
+          </div>
+          <div
+            v-if="visibleVideos.length === 0"
+            class="border-t border-slate-100 p-5 text-sm text-slate-600"
+          >
+            No hay vídeos elegibles en este periodo.
+          </div>
+          <div v-if="hasMoreVideos" class="border-t border-slate-200 p-5 text-center">
+            <button
+              type="button"
+              class="h-10 rounded-md border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              @click="loadMoreVideos"
+            >
+              Cargar 10 más
+            </button>
           </div>
         </section>
       </template>

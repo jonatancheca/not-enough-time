@@ -60,6 +60,8 @@ export interface YouTubeAuthManager {
   disconnect(): void
   revoke(): Promise<void>
   probe(): Promise<void>
+  reportExpired(): void
+  reportRevoked(): void
   getAccessToken(): string | null
   getSnapshot(): YouTubeAuthSnapshot
   subscribe(listener: (snapshot: YouTubeAuthSnapshot) => void): () => void
@@ -125,6 +127,17 @@ export function createYouTubeAuthManager(options: YouTubeAuthManagerOptions): Yo
     emit({
       status: 'expired',
       error: 'La autorización ha caducado. Vuelve a autorizar para continuar.',
+      ...initialProbeState
+    })
+  }
+
+  function reportRevoked() {
+    clearToken()
+    clearYoutubeData()
+    emit({
+      status: 'revoked',
+      expiresAt: null,
+      error: 'YouTube ha revocado o rechazado el permiso. Vuelve a conectar la cuenta.',
       ...initialProbeState
     })
   }
@@ -393,6 +406,8 @@ export function createYouTubeAuthManager(options: YouTubeAuthManagerOptions): Yo
     disconnect,
     revoke,
     probe,
+    reportExpired: expireToken,
+    reportRevoked,
     getAccessToken,
     getSnapshot,
     subscribe(listener) {

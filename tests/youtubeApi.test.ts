@@ -8,6 +8,17 @@ const now = new Date('2026-09-19T12:00:00.000Z')
 const cutoff = new Date('2026-08-20T12:00:00.000Z').toISOString()
 
 describe('YouTube Data API client', () => {
+  it('loads the stable channel ID for the authorized account', async () => {
+    const fetcher = vi.fn(async () => jsonResponse({ items: [{ id: 'owner-channel-id' }] }))
+    const client = createClient(fetcher)
+
+    await expect(client.getMyChannelId()).resolves.toBe('owner-channel-id')
+    const url = new URL(String(fetcher.mock.calls[0]?.[0]))
+    expect(url.pathname).toBe('/youtube/v3/channels')
+    expect(url.searchParams.get('mine')).toBe('true')
+    expect(url.searchParams.get('part')).toBe('id')
+  })
+
   it('paginates all subscriptions with maxResults 50 and bearer authorization', async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input))

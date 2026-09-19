@@ -47,6 +47,8 @@ jobs:
 
       - name: Generate static site
         run: pnpm generate
+        env:
+          NUXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NUXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

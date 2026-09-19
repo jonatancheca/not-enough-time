@@ -46,6 +46,8 @@ export function useYoutubeAuth() {
     disconnect: () => getManager(clientId).disconnect(),
     revoke: () => getManager(clientId).revoke(),
     probe: () => getManager(clientId).probe(),
+    reportExpired: () => getManager(clientId).reportExpired(),
+    reportRevoked: () => getManager(clientId).reportRevoked(),
     getAccessToken: () => getManager(clientId).getAccessToken()
   }
 }

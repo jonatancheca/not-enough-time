@@ -127,6 +127,27 @@ export function createYouTubeApiClient(options: YouTubeApiClientOptions): YouTub
     }
   }
 
+  async function getMyChannelId(
+    requestOptions?: YouTubeRequestOptions
+  ): Promise<string> {
+    const response = await request('channels', {
+      part: 'id',
+      mine: 'true',
+      maxResults: '1'
+    }, requestOptions)
+    const channelId = response.items
+      .map((item) => isRecord(item) ? stringValue(item.id) : undefined)
+      .find(Boolean)
+
+    if (!channelId) {
+      throw new YouTubeApiError('La cuenta autorizada no tiene un canal de YouTube identificable.', {
+        kind: 'invalid_response'
+      })
+    }
+
+    return channelId
+  }
+
   async function listMySubscriptions(
     requestOptions?: YouTubeRequestOptions
   ): Promise<SubscribedChannel[]> {
@@ -277,6 +298,7 @@ export function createYouTubeApiClient(options: YouTubeApiClientOptions): YouTub
   }
 
   return {
+    getMyChannelId,
     listMySubscriptions,
     listRecentUploads,
     listVideoDetails

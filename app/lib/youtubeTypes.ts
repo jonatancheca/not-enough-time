@@ -33,6 +33,7 @@ export interface YouTubeRequestOptions {
 }
 
 export interface YouTubeClient {
+  getMyChannelId(options?: YouTubeRequestOptions): Promise<string>
   listMySubscriptions(options?: YouTubeRequestOptions): Promise<SubscribedChannel[]>
   listRecentUploads(
     channelIds: string[],

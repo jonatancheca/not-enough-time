@@ -216,6 +216,9 @@ export function createMockYouTubeClient(now = new Date()): YouTubeClient {
   const videos = buildVideos(now)
 
   return {
+    async getMyChannelId() {
+      return delay('mock-youtube-account')
+    },
     async listMySubscriptions() {
       return delay(channels)
     },
