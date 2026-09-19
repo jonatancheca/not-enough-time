@@ -14,12 +14,32 @@ export interface PublishedVideo {
   durationSeconds: number
   thumbnailUrl: string
   url: string
+  liveStatus: YouTubeLiveStatus
+  scheduledStartTime?: string
+  actualStartTime?: string
+  actualEndTime?: string
+}
+
+export type YouTubeLiveStatus = 'none' | 'upcoming' | 'live' | 'completed'
+
+export interface YouTubeUploadReference {
+  id: string
+  channelId: string
+  publishedAt: string
+}
+
+export interface YouTubeRequestOptions {
+  signal?: AbortSignal
 }
 
 export interface YouTubeClient {
-  listMySubscriptions(): Promise<SubscribedChannel[]>
-  listRecentUploads(channelIds: string[], publishedAfter: string): Promise<PublishedVideo[]>
-  listVideoDetails(videoIds: string[]): Promise<PublishedVideo[]>
+  listMySubscriptions(options?: YouTubeRequestOptions): Promise<SubscribedChannel[]>
+  listRecentUploads(
+    channelIds: string[],
+    publishedAfter: string,
+    options?: YouTubeRequestOptions
+  ): Promise<YouTubeUploadReference[]>
+  listVideoDetails(videoIds: string[], options?: YouTubeRequestOptions): Promise<PublishedVideo[]>
 }
 
 export interface ChannelBreakdown {

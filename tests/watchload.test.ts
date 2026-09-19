@@ -80,7 +80,8 @@ function video(id: string, channelId: string, publishedAt: string, durationSecon
     durationIso: 'PT1M',
     durationSeconds,
     thumbnailUrl: 'https://example.com/thumb.jpg',
-    url: `https://example.com/${id}`
+    url: `https://example.com/${id}`,
+    liveStatus: 'none'
   }
 }
 

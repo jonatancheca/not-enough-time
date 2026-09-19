@@ -247,7 +247,8 @@ function buildVideos(now: Date): PublishedVideo[] {
     durationIso: seed.durationIso,
     durationSeconds: parseYouTubeDurationToSeconds(seed.durationIso),
     thumbnailUrl: seed.thumbnailUrl,
-    url: `https://www.youtube.com/watch?v=${seed.id}`
+    url: `https://www.youtube.com/watch?v=${seed.id}`,
+    liveStatus: 'none'
   }))
 }
 
