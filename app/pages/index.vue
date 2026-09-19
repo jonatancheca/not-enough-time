@@ -13,7 +13,7 @@ import {
   Trophy,
   TvMinimalPlay
 } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { StateNoticeContent } from '~/components/StateNotice.vue'
 import { selectWatchloadViewState } from '~/lib/watchloadView'
 import { formatDuration, formatHours, getVideoWindow, isWithinWindow, WATCHLOAD_WINDOWS } from '~/lib/watchload'
@@ -80,15 +80,20 @@ const viewState = computed(() => selectWatchloadViewState({
 }))
 
 const windowOptions = [
-  { key: 'month', label: '30 dias' },
-  { key: 'week', label: '7 dias' },
+  { key: 'month', label: '30 días' },
+  { key: 'week', label: '7 días' },
   { key: 'day', label: '24 h' }
 ] as const
 const windowLabels = {
-  day: 'ultimas 24 h',
-  week: 'ultimos 7 dias',
-  month: 'ultimos 30 dias',
+  day: 'últimas 24 h',
+  week: 'últimos 7 días',
+  month: 'últimos 30 días',
   older: 'fuera'
+} as const
+const selectedWindowLabels = {
+  day: 'las últimas 24 horas',
+  week: 'los últimos 7 días',
+  month: 'los últimos 30 días'
 } as const
 
 const capacityStatusLabels: Record<DailyCapacityStatus, string> = {
@@ -130,9 +135,16 @@ const visibleVideos = computed(() => {
 })
 const displayedVideos = computed(() => visibleVideos.value.slice(0, videoLimit.value))
 const hasMoreVideos = computed(() => displayedVideos.value.length < visibleVideos.value.length)
+const videoListStatus = computed(() => visibleVideos.value.length === 0
+  ? `No hay vídeos elegibles de ${selectedWindowLabels[selectedWindow.value]}.`
+  : `Mostrando ${displayedVideos.value.length} de ${formatVideoCount(visibleVideos.value.length)} de ${selectedWindowLabels[selectedWindow.value]}.`
+)
 const displayedChannels = computed(() => data.value?.subscriptions.slice(0, channelLimit.value) ?? [])
 const hasMoreChannels = computed(() =>
   displayedChannels.value.length < (data.value?.subscriptions.length ?? 0)
+)
+const channelListStatus = computed(() =>
+  `Mostrando ${displayedChannels.value.length} de ${formatChannelCount(data.value?.subscriptions.length ?? 0)}.`
 )
 const failedChannelNames = computed(() => {
   const failedIds = new Set(failedChannelIds.value)
@@ -184,23 +196,23 @@ const kpis = computed(() => {
 
   return [
     {
-      label: 'Ultimas 24 h',
+      label: 'Últimas 24 h',
       value: summary ? formatHours(summary.daySeconds) : '0,0 h',
-      detail: `${countVideos('day')} videos`,
+      detail: formatVideoCount(countVideos('day')),
       icon: Clock3,
       accent: 'bg-red-500'
     },
     {
-      label: 'Ultimos 7 dias',
+      label: 'Últimos 7 días',
       value: summary ? formatHours(summary.weekSeconds) : '0,0 h',
-      detail: `${countVideos('week')} videos`,
+      detail: formatVideoCount(countVideos('week')),
       icon: CalendarDays,
       accent: 'bg-sky-500'
     },
     {
-      label: 'Ultimos 30 dias',
+      label: 'Últimos 30 días',
       value: summary ? formatHours(summary.monthSeconds) : '0,0 h',
-      detail: `${summary?.videoCount ?? 0} videos`,
+      detail: formatVideoCount(summary?.videoCount ?? 0),
       icon: BarChart3,
       accent: 'bg-emerald-500'
     },
@@ -265,6 +277,14 @@ function formatCoveragePercent(value: number): string {
   }).format(value)} %`
 }
 
+function formatVideoCount(value: number): string {
+  return `${value} ${value === 1 ? 'vídeo' : 'vídeos'}`
+}
+
+function formatChannelCount(value: number): string {
+  return `${value} ${value === 1 ? 'canal' : 'canales'}`
+}
+
 function formatDifference(seconds: number): string {
   const absoluteSeconds = Math.abs(seconds)
 
@@ -290,12 +310,18 @@ function refreshData() {
   void refresh()
 }
 
-function loadMoreVideos() {
+async function loadMoreVideos() {
+  const firstNewVideo = visibleVideos.value[displayedVideos.value.length]
   videoLimit.value += 10
+  await nextTick()
+  document.getElementById(`video-${firstNewVideo?.id}`)?.focus()
 }
 
-function loadMoreChannels() {
+async function loadMoreChannels() {
+  const firstNewChannel = data.value?.subscriptions[displayedChannels.value.length]
   channelLimit.value += 10
+  await nextTick()
+  document.getElementById(`channel-${firstNewChannel?.id}`)?.focus()
 }
 
 async function handleDisconnect() {
@@ -440,8 +466,8 @@ watch(
           </article>
         </section>
 
-        <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div class="rounded-md border border-slate-200 bg-white shadow-soft">
+        <section class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div class="min-w-0 rounded-md border border-slate-200 bg-white shadow-soft">
             <div class="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div class="flex items-center gap-2 text-slate-950">
@@ -449,7 +475,7 @@ watch(
                   <h2 class="text-lg font-semibold">Ranking por canal</h2>
                 </div>
                 <p class="mt-1 text-sm text-slate-500">
-                  {{ data.summary.videoCount }} videos en 30 dias, media de
+                  {{ formatVideoCount(data.summary.videoCount) }} en 30 días, media de
                   {{ formatDuration(averageVideoDuration) }}
                 </p>
               </div>
@@ -467,20 +493,20 @@ watch(
                 <div class="flex min-w-0 gap-4">
                   <img
                     :src="entry.channel.avatarUrl"
-                    :alt="entry.channel.title"
+                    alt=""
                     class="size-12 shrink-0 rounded-md object-cover"
                   >
                   <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                       <h3 class="truncate text-base font-semibold text-slate-950">{{ entry.channel.title }}</h3>
                       <span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                        {{ entry.videoCount }} videos
+                        {{ formatVideoCount(entry.videoCount) }}
                       </span>
                     </div>
                     <p class="mt-1 truncate text-sm text-slate-500">
-                      Ultimo: {{ entry.latestVideo?.title ?? 'Sin videos recientes' }}
+                      Último: {{ entry.latestVideo?.title ?? 'Sin vídeos recientes' }}
                     </p>
-                    <div class="mt-3 h-2 rounded-full bg-slate-100">
+                    <div class="mt-3 h-2 rounded-full bg-slate-100" aria-hidden="true">
                       <div
                         class="h-full rounded-full bg-red-500"
                         :style="{ width: `${Math.max(entry.shareOfMonth * 100, 3)}%` }"
@@ -513,7 +539,7 @@ watch(
                   min="0"
                   step="1"
                   inputmode="numeric"
-                  class="h-11 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-lg font-semibold text-slate-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  class="h-11 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-lg font-semibold text-slate-950 transition focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-100"
                   aria-describedby="daily-capacity-help"
                   @change="updateCapacity"
                 >
@@ -543,10 +569,10 @@ watch(
                 <p class="text-sm font-medium text-slate-300">Ritmo diario requerido</p>
               </div>
               <p class="mt-3 text-3xl font-semibold">
-                {{ formatDuration(data.summary.requiredDailySeconds) }}/dia
+                {{ formatDuration(data.summary.requiredDailySeconds) }}/día
               </p>
               <p class="mt-2 text-sm text-slate-300">
-                Basado en {{ formatHours(data.summary.monthSeconds) }} publicadas durante los ultimos 30 dias.
+                Basado en {{ formatHours(data.summary.monthSeconds) }} publicadas durante los últimos 30 días.
               </p>
             </div>
             <div class="mt-4 rounded-md border p-4" :class="capacityStatusClass" aria-live="polite">
@@ -579,22 +605,28 @@ watch(
           <div v-if="data.subscriptions.length" class="divide-y divide-slate-100">
             <article
               v-for="channel in displayedChannels"
+              :id="`channel-${channel.id}`"
               :key="channel.id"
-              class="grid min-w-0 gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:items-center"
+              :aria-labelledby="`channel-title-${channel.id}`"
+              tabindex="-1"
+              class="grid min-w-0 gap-4 p-5 focus-visible:rounded-md lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:items-center"
             >
               <div class="flex min-w-0 items-center gap-3">
                 <img
                   :src="channel.avatarUrl"
-                  :alt="channel.title"
+                  alt=""
                   class="size-11 shrink-0 rounded-md object-cover"
                 >
                 <div class="min-w-0">
-                  <h3 class="truncate font-semibold text-slate-950">{{ channel.title }}</h3>
+                  <h3 :id="`channel-title-${channel.id}`" class="truncate font-semibold text-slate-950">
+                    {{ channel.title }}
+                  </h3>
                   <a
                     :href="channel.url"
                     target="_blank"
                     rel="noreferrer"
-                    class="text-sm text-slate-500 hover:text-red-600"
+                    :aria-label="`Abrir canal ${channel.title} en YouTube (se abre en una pestaña nueva)`"
+                    class="inline-flex min-h-6 min-w-6 items-center text-sm text-slate-500 hover:text-red-600"
                   >
                     Abrir canal
                   </a>
@@ -602,6 +634,7 @@ watch(
               </div>
 
               <ChannelRuleControls
+                :channel-title="channel.title"
                 :rule="channelRule(channel.id)"
                 @channel-excluded="updateChannelExcluded(channel.id, $event)"
                 @category-excluded="updateCategoryExcluded(
@@ -616,6 +649,10 @@ watch(
           <div v-else class="p-5 text-sm text-slate-600">
             No hay suscripciones que configurar.
           </div>
+
+          <p class="sr-only" aria-live="polite" aria-atomic="true">
+            {{ channelListStatus }}
+          </p>
 
           <div class="flex flex-col gap-3 border-t border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
             <button
@@ -638,20 +675,28 @@ watch(
           </div>
         </section>
 
-        <section class="rounded-md border border-slate-200 bg-white shadow-soft">
+        <section
+          class="rounded-md border border-slate-200 bg-white shadow-soft"
+          aria-labelledby="recent-videos-title"
+        >
           <div class="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex items-center gap-2 text-slate-950">
               <ListVideo class="size-5 text-sky-500" aria-hidden="true" />
-              <h2 class="text-lg font-semibold">Videos recientes</h2>
+              <h2 id="recent-videos-title" class="text-lg font-semibold">Vídeos recientes</h2>
             </div>
 
-            <div class="grid grid-cols-3 rounded-md border border-slate-200 bg-slate-50 p-1">
+            <div
+              class="grid grid-cols-3 rounded-md border border-slate-200 bg-slate-50 p-1"
+              role="group"
+              aria-label="Periodo de publicación de los vídeos recientes"
+            >
               <button
                 v-for="option in windowOptions"
                 :key="option.key"
                 type="button"
                 class="h-9 rounded-md px-3 text-sm font-semibold transition"
                 :class="selectedWindow === option.key ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-950'"
+                :aria-pressed="selectedWindow === option.key"
                 @click="selectedWindow = option.key"
               >
                 {{ option.label }}
@@ -662,22 +707,27 @@ watch(
           <div class="divide-y divide-slate-100">
             <article
               v-for="video in displayedVideos"
+              :id="`video-${video.id}`"
               :key="video.id"
-              class="grid gap-4 p-5 md:grid-cols-[180px_minmax(0,1fr)_160px]"
+              :aria-labelledby="`video-title-${video.id}`"
+              tabindex="-1"
+              class="grid gap-4 p-5 focus-visible:rounded-md md:grid-cols-[180px_minmax(0,1fr)_160px]"
             >
               <img
                 :src="video.thumbnailUrl"
-                :alt="video.title"
+                alt=""
                 class="aspect-video w-full rounded-md object-cover md:w-[180px]"
               >
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
+                  <span class="rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
                     {{ videoWindowLabel(video) }}
                   </span>
                   <span class="text-sm text-slate-500">{{ formatPublishedAt(video.publishedAt) }}</span>
                 </div>
-                <h3 class="mt-2 text-base font-semibold text-slate-950">{{ video.title }}</h3>
+                <h3 :id="`video-title-${video.id}`" class="mt-2 text-base font-semibold text-slate-950">
+                  {{ video.title }}
+                </h3>
                 <p class="mt-1 text-sm text-slate-500">{{ channelFor(video)?.title }}</p>
               </div>
               <div class="flex items-center justify-between gap-4 md:flex-col md:items-end md:justify-center">
@@ -689,7 +739,8 @@ watch(
                   :href="video.url"
                   target="_blank"
                   rel="noreferrer"
-                  class="text-sm font-semibold text-slate-500 transition hover:text-red-600"
+                  :aria-label="`Ver ${video.title} de ${channelFor(video)?.title ?? 'canal desconocido'} en YouTube (se abre en una pestaña nueva)`"
+                  class="inline-flex min-h-6 min-w-6 items-center text-sm font-semibold text-slate-500 transition hover:text-red-600"
                 >
                   Ver en YouTube
                 </a>
@@ -702,10 +753,16 @@ watch(
           >
             No hay vídeos elegibles en este periodo.
           </div>
+
+          <p id="video-list-status" class="sr-only" aria-live="polite" aria-atomic="true">
+            {{ videoListStatus }}
+          </p>
+
           <div v-if="hasMoreVideos" class="border-t border-slate-200 p-5 text-center">
             <button
               type="button"
               class="h-10 rounded-md border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              aria-describedby="video-list-status"
               @click="loadMoreVideos"
             >
               Cargar 10 más
@@ -717,7 +774,7 @@ watch(
       <footer class="border-t border-slate-200 py-5 text-sm text-slate-600">
         <NuxtLink
           to="/privacy/"
-          class="font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-600"
+          class="inline-flex min-h-6 min-w-6 items-center font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-red-600"
         >
           Aviso de privacidad
         </NuxtLink>

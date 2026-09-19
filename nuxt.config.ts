@@ -16,6 +16,9 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      htmlAttrs: {
+        lang: 'es'
+      },
       title: 'Not Enough Time',
       meta: [
         {

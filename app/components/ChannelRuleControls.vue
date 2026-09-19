@@ -2,6 +2,7 @@
 import type { ChannelContentRule, VideoContentCategory } from '~/lib/contentRules'
 
 defineProps<{
+  channelTitle: string
   rule: ChannelContentRule
 }>()
 
@@ -11,9 +12,9 @@ const emit = defineEmits<{
 }>()
 
 const categories = [
-  { key: 'short', label: 'Cortos' },
-  { key: 'long', label: 'Largos' },
-  { key: 'live', label: 'Directos' }
+  { key: 'short', label: 'Vídeos cortos' },
+  { key: 'long', label: 'Vídeos largos' },
+  { key: 'live', label: 'Emisiones en directo' }
 ] as const
 
 function checked(event: Event): boolean {
@@ -22,11 +23,13 @@ function checked(event: Event): boolean {
 </script>
 
 <template>
-  <div class="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+  <fieldset class="grid min-w-0 gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+    <legend class="sr-only">Reglas de contenido para {{ channelTitle }}</legend>
     <label class="flex min-w-0 items-center gap-2 rounded-md border border-slate-200 p-3 font-semibold text-slate-700">
       <input
         type="checkbox"
-        aria-label="Excluir canal"
+        class="size-6 shrink-0 accent-red-600"
+        :aria-label="`Excluir canal ${channelTitle}`"
         :checked="rule.excluded"
         @change="emit('channelExcluded', checked($event))"
       >
@@ -40,7 +43,8 @@ function checked(event: Event): boolean {
     >
       <input
         type="checkbox"
-        :aria-label="`Excluir ${category.label.toLowerCase()}`"
+        class="size-6 shrink-0 accent-red-600"
+        :aria-label="`Excluir ${category.label.toLowerCase()} de ${channelTitle}`"
         :checked="rule.excludedCategories[category.key]"
         :disabled="rule.excluded"
         @change="emit('categoryExcluded', {
@@ -50,5 +54,5 @@ function checked(event: Event): boolean {
       >
       {{ category.label }}
     </label>
-  </div>
+  </fieldset>
 </template>

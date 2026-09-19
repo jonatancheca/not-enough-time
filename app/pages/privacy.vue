@@ -69,7 +69,12 @@ useSeoMeta({
             <h2 id="privacy-storage" class="text-xl font-semibold text-slate-950">
               Datos guardados en este navegador
             </h2>
-            <div class="mt-4 overflow-x-auto">
+            <div
+              class="mt-4 overflow-x-auto rounded-sm"
+              role="region"
+              aria-label="Resumen de datos guardados"
+              tabindex="0"
+            >
               <table class="w-full min-w-[36rem] border-collapse text-left text-sm">
                 <thead>
                   <tr class="border-b border-slate-300 text-slate-950">
@@ -149,8 +154,8 @@ useSeoMeta({
                 href="https://github.com/jonatancheca/not-enough-time/issues"
                 target="_blank"
                 rel="noreferrer"
-                class="font-semibold text-red-700 underline underline-offset-4"
-              >repositorio de Not Enough Time</a>.
+                class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+              >repositorio de Not Enough Time<span class="sr-only"> (se abre en una pestaña nueva)</span></a>.
             </p>
             <ul class="mt-3 list-disc space-y-2 pl-6">
               <li>
@@ -158,24 +163,24 @@ useSeoMeta({
                   href="https://policies.google.com/privacy"
                   target="_blank"
                   rel="noreferrer"
-                  class="font-semibold text-red-700 underline underline-offset-4"
-                >Política de privacidad de Google</a>
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                >Política de privacidad de Google<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
               </li>
               <li>
                 <a
                   href="https://www.youtube.com/t/terms"
                   target="_blank"
                   rel="noreferrer"
-                  class="font-semibold text-red-700 underline underline-offset-4"
-                >Términos del Servicio de YouTube</a>
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                >Términos del Servicio de YouTube<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
               </li>
               <li>
                 <a
                   href="https://developers.google.com/terms/api-services-user-data-policy"
                   target="_blank"
                   rel="noreferrer"
-                  class="font-semibold text-red-700 underline underline-offset-4"
-                >Política de datos de usuario de los servicios API de Google</a>
+                  class="inline-flex min-h-6 max-w-full flex-wrap items-center font-semibold text-red-700 underline underline-offset-4"
+                >Política de datos de usuario de los servicios API de Google<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
               </li>
             </ul>
           </section>

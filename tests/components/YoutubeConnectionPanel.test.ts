@@ -13,6 +13,12 @@ const baseProps = {
 }
 
 describe('YouTube connection panel', () => {
+  it('allows connecting from the disconnected state', () => {
+    const wrapper = mount(YoutubeConnectionPanel, { props: baseProps })
+
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+  })
+
   it('keeps missing public OAuth configuration safe and actionable', () => {
     const wrapper = mount(YoutubeConnectionPanel, {
       props: {

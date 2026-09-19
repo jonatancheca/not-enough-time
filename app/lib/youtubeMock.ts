@@ -14,7 +14,7 @@ interface MockVideoSeed {
 const channels: SubscribedChannel[] = [
   {
     id: 'dev-pragmatico',
-    title: 'Dev Pragmatico',
+    title: 'Dev Pragmático',
     avatarUrl: 'https://images.unsplash.com/photo-1555952494-efd681c7e3f9?auto=format&fit=crop&w=128&q=80',
     url: 'https://www.youtube.com/@dev-pragmatico'
   },
@@ -69,7 +69,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'science-ocean-thermal',
     channelId: 'ciencia-en-corto',
-    title: 'Por que el oceano cambia el clima de una ciudad',
+    title: 'Por qué el océano cambia el clima de una ciudad',
     durationIso: 'PT16M45S',
     daysAgo: 0,
     hoursAgo: 9,
@@ -78,7 +78,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'kitchen-rice',
     channelId: 'cocina-de-semana',
-    title: 'Tres cenas rapidas con arroz y verduras',
+    title: 'Tres cenas rápidas con arroz y verduras',
     durationIso: 'PT24M12S',
     daysAgo: 0,
     hoursAgo: 18,
@@ -87,7 +87,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'finance-rates',
     channelId: 'finanzas-claras',
-    title: 'Como leer una cartera cuando bajan los tipos',
+    title: 'Cómo leer una cartera cuando bajan los tipos',
     durationIso: 'PT42M08S',
     daysAgo: 1,
     hoursAgo: 3,
@@ -114,7 +114,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'prod-weekly-review',
     channelId: 'productividad-real',
-    title: 'Revision semanal sin convertirla en otro trabajo',
+    title: 'Revisión semanal sin convertirla en otro trabajo',
     durationIso: 'PT28M09S',
     daysAgo: 4,
     hoursAgo: 2,
@@ -132,7 +132,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'science-solar',
     channelId: 'ciencia-en-corto',
-    title: 'La energia solar vista desde una azotea',
+    title: 'La energía solar vista desde una azotea',
     durationIso: 'PT21M38S',
     daysAgo: 6,
     hoursAgo: 5,
@@ -141,7 +141,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'history-city',
     channelId: 'historia-visual',
-    title: 'La ciudad que cambio de nombre cinco veces',
+    title: 'La ciudad que cambió de nombre cinco veces',
     durationIso: 'PT1H03M18S',
     daysAgo: 9,
     hoursAgo: 10,
@@ -150,7 +150,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'kitchen-soups',
     channelId: 'cocina-de-semana',
-    title: 'Sopas frias para dias largos',
+    title: 'Sopas frías para días largos',
     durationIso: 'PT18M44S',
     daysAgo: 11,
     hoursAgo: 15,
@@ -177,7 +177,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'games-sound',
     channelId: 'indie-games-lab',
-    title: 'Disenar sonido para un juego pequeno',
+    title: 'Diseñar sonido para un juego pequeño',
     durationIso: 'PT52M02S',
     daysAgo: 19,
     hoursAgo: 9,
@@ -195,7 +195,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'history-archive',
     channelId: 'historia-visual',
-    title: 'Como leer un archivo fotografico',
+    title: 'Cómo leer un archivo fotográfico',
     durationIso: 'PT35M33S',
     daysAgo: 28,
     hoursAgo: 1,
@@ -204,7 +204,7 @@ const videoSeeds: MockVideoSeed[] = [
   {
     id: 'science-old',
     channelId: 'ciencia-en-corto',
-    title: 'Este video queda fuera de la ventana mensual',
+    title: 'Este vídeo queda fuera de la ventana mensual',
     durationIso: 'PT19M00S',
     daysAgo: 36,
     hoursAgo: 0,
