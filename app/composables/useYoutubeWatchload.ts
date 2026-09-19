@@ -1,9 +1,12 @@
 import { createMockYouTubeClient } from '~/lib/youtubeMock'
-import { buildWatchloadSummary, WATCHLOAD_WINDOWS } from '~/lib/watchload'
+import { loadContentPreferences } from '~/lib/contentPreferences'
+import { buildEligibleWatchload, WATCHLOAD_WINDOWS } from '~/lib/watchload'
 
-export function useYoutubeWatchload() {
+export const MOCK_YOUTUBE_ACCOUNT_ID = 'mock-youtube-account'
+
+export function useYoutubeWatchload(accountId = MOCK_YOUTUBE_ACCOUNT_ID) {
   return useAsyncData(
-    'youtube-watchload',
+    `youtube-api:watchload:${accountId}`,
     async () => {
       const now = new Date()
       const client = createMockYouTubeClient(now)
@@ -15,12 +18,15 @@ export function useYoutubeWatchload() {
       const sortedVideos = videos.toSorted(
         (left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime()
       )
+      const preferences = loadContentPreferences(accountId)
+      const eligibleWatchload = buildEligibleWatchload(subscriptions, sortedVideos, preferences, now)
 
       return {
+        accountId,
         generatedAt: now.toISOString(),
         subscriptions,
-        videos: sortedVideos,
-        summary: buildWatchloadSummary(subscriptions, sortedVideos, now)
+        videos: eligibleWatchload.videos,
+        summary: eligibleWatchload.summary
       }
     },
     {

@@ -1,4 +1,5 @@
 import type { ChannelBreakdown, PublishedVideo, SubscribedChannel, WatchloadSummary } from './youtubeTypes'
+import { filterEligibleVideos, type AccountContentPreferences } from './contentRules'
 
 const SECOND = 1000
 const DAY_SECONDS = 24 * 60 * 60
@@ -10,6 +11,11 @@ export const WATCHLOAD_WINDOWS = {
 } as const
 
 export type WatchloadWindow = keyof typeof WATCHLOAD_WINDOWS
+
+export interface EligibleWatchload {
+  videos: PublishedVideo[]
+  summary: WatchloadSummary
+}
 
 export function parseYouTubeDurationToSeconds(durationIso: string): number {
   const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(durationIso)
@@ -79,6 +85,20 @@ export function buildWatchloadSummary(
   }
 }
 
+export function buildEligibleWatchload(
+  channels: SubscribedChannel[],
+  videos: PublishedVideo[],
+  preferences: AccountContentPreferences,
+  now: Date = new Date()
+): EligibleWatchload {
+  const eligibleVideos = filterEligibleVideos(videos, preferences)
+
+  return {
+    videos: eligibleVideos,
+    summary: buildWatchloadSummary(channels, eligibleVideos, now)
+  }
+}
+
 export function secondsToHours(seconds: number): number {
   return seconds / 60 / 60
 }
@@ -111,7 +131,15 @@ function filterWindow(videos: PublishedVideo[], now: Date, windowSeconds: number
 }
 
 function sumSeconds(videos: PublishedVideo[]): number {
-  return videos.reduce((total, video) => total + video.durationSeconds, 0)
+  return videos.reduce((total, video) => total + normalizeVideoSeconds(video.durationSeconds), 0)
+}
+
+function normalizeVideoSeconds(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    return 0
+  }
+
+  return Math.min(value, Number.MAX_SAFE_INTEGER)
 }
 
 function buildChannelBreakdown(

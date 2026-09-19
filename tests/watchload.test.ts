@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildEligibleWatchload,
   buildWatchloadSummary,
   getVideoWindow,
   parseYouTubeDurationToSeconds
 } from '../app/lib/watchload'
+import {
+  createContentPreferences,
+  setChannelExcluded,
+  setContentCategoryExcluded
+} from '../app/lib/contentRules'
 import type { PublishedVideo, SubscribedChannel } from '../app/lib/youtubeTypes'
 
 const now = new Date('2026-06-14T12:00:00.000Z')
@@ -38,6 +44,16 @@ describe('watchload calculations', () => {
     expect(getVideoWindow(isoDaysAgo(31), now)).toBe('older')
   })
 
+  it('includes exact moving-window boundaries and excludes one millisecond beyond them', () => {
+    expect(getVideoWindow(isoMillisecondsAgo(24 * 60 * 60 * 1000), now)).toBe('day')
+    expect(getVideoWindow(isoMillisecondsAgo(24 * 60 * 60 * 1000 + 1), now)).toBe('week')
+    expect(getVideoWindow(isoMillisecondsAgo(7 * 24 * 60 * 60 * 1000), now)).toBe('week')
+    expect(getVideoWindow(isoMillisecondsAgo(7 * 24 * 60 * 60 * 1000 + 1), now)).toBe('month')
+    expect(getVideoWindow(isoMillisecondsAgo(30 * 24 * 60 * 60 * 1000), now)).toBe('month')
+    expect(getVideoWindow(isoMillisecondsAgo(30 * 24 * 60 * 60 * 1000 + 1), now)).toBe('older')
+    expect(getVideoWindow(isoMillisecondsAgo(-1), now)).toBe('older')
+  })
+
   it('calculates daily, weekly, monthly and required daily seconds', () => {
     const summary = buildWatchloadSummary(channels, [
       video('day', 'alpha', isoHoursAgo(2), 1800),
@@ -69,9 +85,53 @@ describe('watchload calculations', () => {
     expect(summary.channelBreakdown[1].daySeconds).toBe(1800)
     expect(summary.channelBreakdown[1].weekSeconds).toBe(5400)
   })
+
+  it('filters channels and exact duration categories before every calculation and listing', () => {
+    const basePreferences = setContentCategoryExcluded(
+      createContentPreferences('account-a'),
+      'alpha',
+      'long',
+      true
+    )
+    const preferences = setChannelExcluded(basePreferences, 'beta', true)
+    const result = buildEligibleWatchload(channels, [
+      video('short-299', 'alpha', isoHoursAgo(1), 299),
+      video('long-300', 'alpha', isoHoursAgo(1), 300),
+      video('live-300', 'alpha', isoHoursAgo(1), 300, 'completed'),
+      video('excluded-channel', 'beta', isoHoursAgo(1), 900)
+    ], preferences, now)
+
+    expect(result.videos.map(({ id }) => id)).toEqual(['short-299', 'live-300'])
+    expect(result.summary.daySeconds).toBe(599)
+    expect(result.summary.weekSeconds).toBe(599)
+    expect(result.summary.monthSeconds).toBe(599)
+    expect(result.summary.videoCount).toBe(2)
+    expect(result.summary.channelBreakdown.map(({ channel }) => channel.id)).toEqual(['alpha'])
+  })
+
+  it('keeps partial numeric data finite', () => {
+    const summary = buildWatchloadSummary(channels, [
+      video('valid', 'alpha', isoHoursAgo(1), 60),
+      video('nan', 'alpha', isoHoursAgo(1), Number.NaN),
+      video('infinite', 'beta', isoHoursAgo(1), Number.POSITIVE_INFINITY),
+      video('negative', 'beta', isoHoursAgo(1), -10)
+    ], now)
+
+    expect(summary.daySeconds).toBe(60)
+    expect(summary.weekSeconds).toBe(60)
+    expect(summary.monthSeconds).toBe(60)
+    expect(summary.requiredDailySeconds).toBe(2)
+    expect(summary.channelBreakdown.every((entry) => Number.isFinite(entry.shareOfMonth))).toBe(true)
+  })
 })
 
-function video(id: string, channelId: string, publishedAt: string, durationSeconds: number): PublishedVideo {
+function video(
+  id: string,
+  channelId: string,
+  publishedAt: string,
+  durationSeconds: number,
+  liveStatus: PublishedVideo['liveStatus'] = 'none'
+): PublishedVideo {
   return {
     id,
     channelId,
@@ -81,7 +141,7 @@ function video(id: string, channelId: string, publishedAt: string, durationSecon
     durationSeconds,
     thumbnailUrl: 'https://example.com/thumb.jpg',
     url: `https://example.com/${id}`,
-    liveStatus: 'none'
+    liveStatus
   }
 }
 
@@ -91,4 +151,8 @@ function isoHoursAgo(hours: number): string {
 
 function isoDaysAgo(days: number): string {
   return isoHoursAgo(days * 24)
+}
+
+function isoMillisecondsAgo(milliseconds: number): string {
+  return new Date(now.getTime() - milliseconds).toISOString()
 }

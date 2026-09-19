@@ -14,8 +14,15 @@ import {
   Trophy,
   TvMinimalPlay
 } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { formatDuration, formatHours, getVideoWindow, isWithinWindow, WATCHLOAD_WINDOWS } from '~/lib/watchload'
+import {
+  compareDailyCapacity,
+  loadDailyCapacityMinutes,
+  normalizeDailyCapacityMinutes,
+  saveDailyCapacityMinutes,
+  type DailyCapacityStatus
+} from '~/lib/viewingCapacity'
 import type { YouTubeAuthStatus } from '~/lib/youtubeAuth'
 import type { PublishedVideo, SubscribedChannel } from '~/lib/youtubeTypes'
 
@@ -34,6 +41,7 @@ const {
 
 const hasHydrated = ref(false)
 const selectedWindow = ref<'day' | 'week' | 'month'>('month')
+const capacityMinutes = ref(0)
 
 const isRefreshing = computed(() => hasHydrated.value && status.value === 'pending')
 const isLoading = computed(() => !hasHydrated.value || (status.value === 'pending' && !data.value))
@@ -42,6 +50,10 @@ const subscriptionsById = computed(() => {
   const entries = data.value?.subscriptions.map((channel) => [channel.id, channel] as const) ?? []
   return new Map<string, SubscribedChannel>(entries)
 })
+const capacityComparison = computed(() => compareDailyCapacity(
+  data.value?.summary.requiredDailySeconds ?? 0,
+  capacityMinutes.value
+))
 
 const windowOptions = [
   { key: 'month', label: '30 dias' },
@@ -75,6 +87,34 @@ const canManageConnection = computed(() =>
   ['connected', 'expired'].includes(authStatus.value)
 )
 const isRequestingPermission = computed(() => authStatus.value === 'requesting')
+
+const capacityStatusLabels: Record<DailyCapacityStatus, string> = {
+  sufficient: 'Capacidad suficiente',
+  tight: 'Capacidad justa',
+  deficit: 'Déficit de capacidad'
+}
+
+const capacityStatusClasses: Record<DailyCapacityStatus, string> = {
+  sufficient: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  tight: 'border-amber-200 bg-amber-50 text-amber-800',
+  deficit: 'border-red-200 bg-red-50 text-red-800'
+}
+
+const capacityStatusLabel = computed(() => capacityStatusLabels[capacityComparison.value.status])
+const capacityStatusClass = computed(() => capacityStatusClasses[capacityComparison.value.status])
+const capacityDifferenceMessage = computed(() => {
+  const differenceSeconds = capacityComparison.value.differenceSeconds
+
+  if (differenceSeconds > 0) {
+    return `Sobran ${formatDifference(differenceSeconds)} al día`
+  }
+
+  if (differenceSeconds < 0) {
+    return `Faltan ${formatDifference(differenceSeconds)} al día`
+  }
+
+  return 'Capacidad igual al ritmo requerido'
+})
 
 const visibleVideos = computed(() => {
   if (!data.value) {
@@ -114,7 +154,7 @@ const kpis = computed(() => {
     {
       label: 'Necesarias al dia',
       value: summary ? formatDuration(summary.requiredDailySeconds) : '0 min',
-      detail: 'para estar al dia',
+      detail: 'ritmo medio de publicación',
       icon: Gauge,
       accent: 'bg-amber-500'
     }
@@ -166,6 +206,33 @@ function formatPercent(value: number): string {
   }).format(value)
 }
 
+function formatCoveragePercent(value: number): string {
+  return `${new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 0
+  }).format(value)} %`
+}
+
+function formatDifference(seconds: number): string {
+  const absoluteSeconds = Math.abs(seconds)
+
+  if (absoluteSeconds > 0 && absoluteSeconds < 60) {
+    return '< 1 min'
+  }
+
+  return formatDuration(absoluteSeconds)
+}
+
+function updateCapacity(event: Event) {
+  const input = event.target as HTMLInputElement
+  const normalizedMinutes = normalizeDailyCapacityMinutes(input.value)
+  capacityMinutes.value = normalizedMinutes
+  input.value = String(normalizedMinutes)
+
+  if (data.value?.accountId) {
+    saveDailyCapacityMinutes(data.value.accountId, normalizedMinutes)
+  }
+}
+
 function refreshData() {
   void refresh()
 }
@@ -173,6 +240,16 @@ function refreshData() {
 onMounted(() => {
   hasHydrated.value = true
 })
+
+watch(
+  () => data.value?.accountId,
+  (accountId) => {
+    if (accountId) {
+      capacityMinutes.value = loadDailyCapacityMinutes(accountId)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -399,6 +476,28 @@ onMounted(() => {
               <TrendingUp class="size-5 text-emerald-500" aria-hidden="true" />
               <h2 class="text-lg font-semibold">Carga diaria</h2>
             </div>
+            <div class="mt-5">
+              <label for="daily-capacity" class="text-sm font-medium text-slate-700">
+                Minutos disponibles al día
+              </label>
+              <div class="mt-2 flex items-center gap-3">
+                <input
+                  id="daily-capacity"
+                  :value="capacityMinutes"
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputmode="numeric"
+                  class="h-11 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-lg font-semibold text-slate-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                  aria-describedby="daily-capacity-help"
+                  @change="updateCapacity"
+                >
+                <span class="text-sm font-medium text-slate-500">min/día</span>
+              </div>
+              <p id="daily-capacity-help" class="mt-2 text-xs text-slate-500">
+                Se guarda en este navegador para esta cuenta.
+              </p>
+            </div>
             <dl class="mt-5 grid grid-cols-2 gap-3">
               <div class="rounded-md bg-slate-50 p-4">
                 <dt class="text-sm text-slate-500">Canales activos</dt>
@@ -423,6 +522,13 @@ onMounted(() => {
               </p>
               <p class="mt-2 text-sm text-slate-300">
                 Basado en {{ formatHours(data.summary.monthSeconds) }} publicadas durante los ultimos 30 dias.
+              </p>
+            </div>
+            <div class="mt-4 rounded-md border p-4" :class="capacityStatusClass" aria-live="polite">
+              <p class="text-sm font-semibold">{{ capacityStatusLabel }}</p>
+              <p class="mt-2 text-xl font-semibold">{{ capacityDifferenceMessage }}</p>
+              <p class="mt-1 text-sm">
+                Cobertura: {{ formatCoveragePercent(capacityComparison.coveragePercent) }}
               </p>
             </div>
           </aside>
